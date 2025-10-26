@@ -4,7 +4,6 @@ from llama_index.core import StorageContext, VectorStoreIndex
 from llama_index.core.schema import BaseNode, TextNode
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient, models
-
 from src.core import config
 
 
@@ -29,7 +28,7 @@ def ensure_collection_exists(
             size=vector_size,
             distance=models.Distance.COSINE,
             hnsw_config=models.HnswConfigDiff(
-                m=16,
+                m=32,
                 ef_construct=100,
             ),
         ),
