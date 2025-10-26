@@ -1,7 +1,7 @@
 import inngest
 from fastapi import status
 from src import schemas
-from . import process_documents, encode_texts
+from src.services.internal import process_documents, encode_texts
 from src.repo.qdrant import upsert_nodes
 
 

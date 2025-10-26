@@ -1,7 +1,7 @@
 import inngest
-from src import schemas
 from fastapi import status
-from . import encode_texts
+from src import schemas
+from src.services.internal import encode_texts
 from src.repo.qdrant import search_batch_similar_nodes
 
 

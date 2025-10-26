@@ -1,6 +1,6 @@
 import inngest
+import src.services.public as public_svcs
 from src import schemas
-from src import services
 from src.core import inngest_client, app
 
 
@@ -10,4 +10,4 @@ from src.core import inngest_client, app
     retries=0,
 )
 async def ingest_documents(ctx: inngest.Context) -> schemas.IngestionResponse:
-    return services.ingest_documents(ctx).model_dump()
+    return public_svcs.ingest_documents(ctx).model_dump()
