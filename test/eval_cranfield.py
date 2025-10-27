@@ -175,7 +175,7 @@ def main():
 
     # Embed queries
     embeddings = dense_encode(
-        texts=query_texts, prefix="query", batch_size=args.batch_size
+        texts=query_texts, text_type="query", batch_size=args.batch_size
     )
 
     # Retrieve chunk-level results

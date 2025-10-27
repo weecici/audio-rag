@@ -25,7 +25,9 @@ def ingest_documents(ctx: inngest.Context) -> schemas.IngestionResponse:
         ctx.logger.info(f"Processed {len(nodes)} chunks with UUIDs and metadata.")
 
         embeddings = dense_encode(
-            texts=[node.text for node in nodes], prefix="document"
+            texts=[node.text for node in nodes],
+            titles=[node.metadata.get("title", "none") for node in nodes],
+            text_type="document",
         )
 
         if len(embeddings) != len(nodes):

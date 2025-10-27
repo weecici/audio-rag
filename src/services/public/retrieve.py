@@ -16,7 +16,7 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
             f"Starting document retrieval process for the {len(request.queries)} input queries."
         )
 
-        query_embeddings = dense_encode(texts=request.queries, prefix="query")
+        query_embeddings = dense_encode(texts=request.queries, text_type="query")
 
         if len(query_embeddings) != len(request.queries):
             raise ValueError(

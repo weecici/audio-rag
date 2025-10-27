@@ -25,6 +25,7 @@ def process_documents(file_paths: list[str], file_dir: str) -> list[TextNode]:
                 text=chunk,
                 metadata={
                     "document_id": doc.doc_id,
+                    "title": doc.metadata.get("title", "none"),
                     "file_name": doc.metadata.get("file_name", "unknown"),
                     "file_path": doc.metadata.get("file_path", "unknown"),
                 },
