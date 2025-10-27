@@ -1,7 +1,7 @@
 import inngest
 from fastapi import status
 from src import schemas
-from src.services.internal import encode_texts
+from src.services.internal import dense_encode
 from src.repo.qdrant import dense_search
 
 
@@ -16,7 +16,7 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
             f"Starting document retrieval process for the {len(request.queries)} input queries."
         )
 
-        query_embeddings = encode_texts(texts=request.queries, prefix="query")
+        query_embeddings = dense_encode(texts=request.queries, prefix="query")
 
         if len(query_embeddings) != len(request.queries):
             raise ValueError(

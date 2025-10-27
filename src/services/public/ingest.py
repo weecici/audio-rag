@@ -1,7 +1,7 @@
 import inngest
 from fastapi import status
 from src import schemas
-from src.services.internal import process_documents, encode_texts
+from src.services.internal import process_documents, dense_encode
 from src.repo.qdrant import upsert_nodes
 
 
@@ -24,7 +24,7 @@ def ingest_documents(ctx: inngest.Context) -> schemas.IngestionResponse:
 
         ctx.logger.info(f"Processed {len(nodes)} chunks with UUIDs and metadata.")
 
-        embeddings = encode_texts(
+        embeddings = dense_encode(
             texts=[node.text for node in nodes], prefix="document"
         )
 

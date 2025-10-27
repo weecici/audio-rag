@@ -16,7 +16,7 @@ def get_embedding_model() -> SentenceTransformer:
     return model
 
 
-def encode_texts(
+def dense_encode(
     texts: list[str], prefix: str, dim: int = config.EMBEDDING_DIM, batch_size: int = 8
 ) -> list[list[float]]:
     model = get_embedding_model()
