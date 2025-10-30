@@ -340,8 +340,7 @@ dependencies = [
     { name = "bm25s" },
     { name = "cerebras-cloud-sdk" },
     { name = "fastapi" },
-    { name = "hf-transfer" },
-    { name = "huggingface-hub", extra = ["cli"] },
+    { name = "huggingface-hub", extra = ["cli", "hf-transfer"] },
     { name = "inngest" },
     { name = "ir-datasets" },
     { name = "llama-index" },
@@ -361,8 +360,7 @@ requires-dist = [
     { name = "bm25s", specifier = ">=0.2.14" },
     { name = "cerebras-cloud-sdk", specifier = ">=1.50.1" },
     { name = "fastapi", specifier = ">=0.119.0" },
-    { name = "hf-transfer", specifier = ">=0.1.9" },
-    { name = "huggingface-hub", extras = ["cli"], specifier = ">=0.35.3" },
+    { name = "huggingface-hub", extras = ["cli", "hf-transfer"], specifier = ">=0.35.3" },
     { name = "inngest", specifier = ">=0.5.9" },
     { name = "ir-datasets", specifier = ">=0.5.11" },
     { name = "llama-index", specifier = ">=0.14.5" },
@@ -752,6 +750,9 @@ wheels = [
 [package.optional-dependencies]
 cli = [
     { name = "inquirerpy" },
+]
+hf-transfer = [
+    { name = "hf-transfer" },
 ]
 
 [[package]]
