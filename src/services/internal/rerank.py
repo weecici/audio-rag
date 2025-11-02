@@ -19,9 +19,16 @@ def get_reranking_model() -> CrossEncoder:
 def rerank(queries: list[str], candidates: list[list[dict]]) -> list[list[dict]]:
     model = get_reranking_model()
 
+    if len(candidates) == 0:
+        return [[] for _ in queries]
+
     sentence_pairs = []
     for i, query in enumerate(queries):
         for candidate in candidates[i]:
+            if "payload" not in candidate:
+                raise ValueError(
+                    "Candidate document is missing 'payload' field required for reranking."
+                )
             sentence_pairs.append([query, candidate["payload"]["text"]])
 
     if not sentence_pairs:

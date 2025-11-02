@@ -4,6 +4,7 @@ from src import schemas
 from src.services.internal import dense_encode, rerank
 from src.repo.qdrant import dense_search, sparse_search, hybrid_search
 from src.repo.local import index_retrieve
+from src.services.internal import fuse_results
 
 
 def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
@@ -59,18 +60,27 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
                     query_texts=request.queries,
                     collection_name=request.collection_name,
                     top_k=request.top_k,
+                    overfetch_mul=request.overfetch_mul,
                 )
             else:
+                overfetch_amount = int(request.top_k * request.overfetch_mul)
+
                 dense_results = dense_search(
                     query_embeddings=query_embeddings,
                     collection_name=request.collection_name,
-                    top_k=request.top_k,
+                    top_k=overfetch_amount,
                 )
                 sparse_results = index_retrieve(
                     query_texts=request.queries,
                     collection_name=request.collection_name,
-                    top_k=request.top_k,
+                    top_k=overfetch_amount,
                 )
+                results = [
+                    fuse_results(results1=dense_result, results2=sparse_result)
+                    for dense_result, sparse_result in zip(
+                        dense_results, sparse_results
+                    )
+                ]
         else:
             raise ValueError(f"Invalid retrieval mode: {request.mode}")
 
@@ -82,11 +92,11 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
             f"Retrieved top {request.top_k} similar documents for each of the {len(request.queries)} queries from collection '{request.collection_name}'."
         )
 
-        # Rerank results
-        results = rerank(
-            queries=request.queries,
-            candidates=results,
-        )
+        # # Rerank results
+        # results = rerank(
+        #     queries=request.queries,
+        #     candidates=results,
+        # )
 
         return schemas.RetrievalResponse(
             status=status.HTTP_200_OK,
