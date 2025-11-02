@@ -66,7 +66,7 @@ def dense_search(
     collection_name: str,
     top_k: int = 5,
     filter: Optional[models.Filter] = None,
-    dense_name: str = config.EMBEDDING_MODEL,
+    dense_name: str = config.DENSE_MODEL,
 ) -> list[list[dict]]:
 
     client = get_qdrant_client()
@@ -136,7 +136,7 @@ def hybrid_search(
     top_k: int = 5,
     overfetch_mul: float = 2.0,
     fusion_method: Literal["dbsf", "rrf"] = config.FUSION_METHOD,
-    dense_name: str = config.EMBEDDING_MODEL,
+    dense_name: str = config.DENSE_MODEL,
     sparse_name: str = config.SPARSE_MODEL,
 ) -> list[list[dict]]:
     client = get_qdrant_client()

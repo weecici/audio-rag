@@ -46,7 +46,7 @@ def ingest_documents(ctx: inngest.Context) -> schemas.IngestionResponse:
             f"Generated {len(nodes)} dense embeddings with each embedding's size is: {len(dense_embeddings[0])}"
         )
 
-        if request.sparse_process_method == "sparse_matrix":
+        if request.sparse_process_method == "sparse_embedding":
             # Create sparse embeddings for the docs
             sparse_embeddings, vocab = sparse_encode(
                 texts=[node.text for node in nodes],

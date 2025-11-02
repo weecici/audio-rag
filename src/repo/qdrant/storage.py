@@ -15,9 +15,9 @@ def get_qdrant_client() -> QdrantClient:
 
 def ensure_collection_exists(
     collection_name: str,
-    dense_name: str = config.EMBEDDING_MODEL,
+    dense_name: str = config.DENSE_MODEL,
     sparse_name: str = config.SPARSE_MODEL,
-    vector_size: int = config.EMBEDDING_DIM,
+    vector_size: int = config.DENSE_DIM,
 ) -> None:
     client = get_qdrant_client()
 
@@ -51,9 +51,9 @@ def upsert_data(
     sparse_embeddings: Optional[csr_matrix],
     vocab: Optional[dict[str, int]],
     collection_name: str,
-    dense_name: str = config.EMBEDDING_MODEL,
+    dense_name: str = config.DENSE_MODEL,
     sparse_name: str = config.SPARSE_MODEL,
-    vector_size: int = config.EMBEDDING_DIM,
+    vector_size: int = config.DENSE_DIM,
 ) -> None:
     if not nodes:
         raise ValueError("No nodes provided for upserting")

@@ -12,8 +12,8 @@ class IngestRequest(BaseModel):
     collection_name: str = Field(
         default="documents", description="Name of the Qdrant collection"
     )
-    sparse_process_method: Literal["sparse_matrix", "inverted_index"] = Field(
-        default="sparse_matrix",
+    sparse_process_method: Literal["sparse_embedding", "inverted_index"] = Field(
+        default="sparse_embedding",
         description="Method for sparse encoding",
     )
 
@@ -29,8 +29,8 @@ class RetrievalQuery(BaseModel):
     mode: Literal["dense", "sparse", "hybrid"] = Field(
         default="hybrid", description="The retrieval mode to use"
     )
-    sparse_process_method: Literal["sparse_matrix", "inverted_index"] = Field(
-        default="sparse_matrix",
+    sparse_process_method: Literal["sparse_embedding", "inverted_index"] = Field(
+        default="sparse_embedding",
         description="Method for sparse encoding",
     )
     overfetch_mul: float = Field(

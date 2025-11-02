@@ -9,9 +9,9 @@ from src.core import config
 @lru_cache(maxsize=1)
 def get_embedding_model() -> SentenceTransformer:
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Loading embedding model {config.EMBEDDING_MODEL} on device: {device}")
+    print(f"Loading embedding model {config.DENSE_MODEL} on device: {device}")
     model = SentenceTransformer(
-        model_name_or_path=config.EMBEDDING_MODEL_PATH,
+        model_name_or_path=config.DENSE_MODEL_PATH,
         device=device,
     )
     return model
@@ -21,7 +21,7 @@ def dense_encode(
     text_type: Literal["document", "query"],
     texts: list[str],
     titles: list[str] = [],
-    dim: int = config.EMBEDDING_DIM,
+    dim: int = config.DENSE_DIM,
     batch_size: int = 8,
 ) -> list[list[float]]:
     model = get_embedding_model()

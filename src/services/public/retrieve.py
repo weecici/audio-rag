@@ -92,11 +92,11 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
             f"Retrieved top {request.top_k} similar documents for each of the {len(request.queries)} queries from collection '{request.collection_name}'."
         )
 
-        # # Rerank results
-        # results = rerank(
-        #     queries=request.queries,
-        #     candidates=results,
-        # )
+        # Rerank results
+        results = rerank(
+            queries=request.queries,
+            candidates=results,
+        )
 
         return schemas.RetrievalResponse(
             status=status.HTTP_200_OK,
