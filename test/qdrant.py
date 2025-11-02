@@ -22,12 +22,13 @@ def display_collection_info(client: QdrantClient, collection_name: str) -> None:
         if isinstance(info.config.params.vectors, dict):
             for vector_name, vector_params in info.config.params.vectors.items():
                 print(f"  - Vector params ('{vector_name}'):")
-                print(f"    - Size: {vector_params.size}")
-                print(f"    - Distance: {vector_params.distance}")
-        else:
-            print("  - Vector params:")
-            print(f"    - Size: {info.config.params.vectors.size}")
-            print(f"    - Distance: {info.config.params.vectors.distance}")
+                print(f"    + Size: {vector_params.size}")
+                print(f"    + Distance: {vector_params.distance}")
+
+        if isinstance(info.config.params.sparse_vectors, dict):
+            for sparse_name, sparse_params in info.config.params.sparse_vectors.items():
+                print(f"  - Sparse vector params ('{sparse_name}'):")
+                print(f"    + Type: {type(sparse_params)}")
 
     except Exception:
         print(f"Collection '{collection_name}' does not exist.")

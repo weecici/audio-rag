@@ -5,7 +5,7 @@ from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.schema import TextNode
 
 
-splitter = SentenceSplitter(chunk_size=1024, chunk_overlap=256)
+splitter = SentenceSplitter(chunk_size=512, chunk_overlap=64)
 
 
 def process_documents(file_paths: list[str], file_dir: str) -> list[TextNode]:

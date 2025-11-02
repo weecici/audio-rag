@@ -4,8 +4,6 @@ from typing import Optional, Literal
 from qdrant_client import models
 from .storage import get_qdrant_client
 from src.core import config
-from src.utils import tokenize
-from collections import Counter
 
 
 _vocab_cache: dict[str, dict[str, int]] = {}
@@ -48,19 +46,6 @@ def _format_batch_results(
     return all_results
 
 
-def sparse_query_vectorize(
-    tokens: list[str], vocab: dict[str, int]
-) -> models.SparseVector:
-    word_counts = Counter(tokens)
-
-    indices = [vocab[token] for token in word_counts.keys() if token in vocab]
-    values = [
-        float(word_counts[token]) for token in word_counts.keys() if token in vocab
-    ]
-
-    return models.SparseVector(indices=indices, values=values)
-
-
 def dense_search(
     query_embeddings: list[list[float]],
     collection_name: str,
@@ -72,10 +57,10 @@ def dense_search(
     client = get_qdrant_client()
 
     search_queries = []
-    for query_emb in query_embeddings:
+    for query_embedding in query_embeddings:
         search_queries.append(
             models.SearchRequest(
-                vector=models.NamedVector(name=dense_name, vector=query_emb),
+                vector=models.NamedVector(name=dense_name, vector=query_embedding),
                 limit=top_k,
                 filter=filter,
                 with_payload=True,
@@ -92,9 +77,8 @@ def dense_search(
 
 
 def sparse_search(
-    query_texts: list[str],
+    query_embeddings: list[tuple[list[int], list[float]]],
     collection_name: str,
-    word_process_method: str = config.WORD_PROCESS_METHOD,
     top_k: int = 5,
     filter: Optional[models.Filter] = None,
     sparse_name: str = config.SPARSE_MODEL,
@@ -102,18 +86,14 @@ def sparse_search(
     client = get_qdrant_client()
     vocab = _load_vocab(collection_name)
 
-    tokenized_query_texts = tokenize(
-        texts=query_texts,
-        word_process_method=word_process_method,
-        return_ids=False,
-    )
-
     search_queries = []
-    for tokens in tokenized_query_texts:
-        sparse_vector = sparse_query_vectorize(tokens=tokens, vocab=vocab)
+    for indices, values in query_embeddings:
+        query_embedding = models.SparseVector(indices=indices, values=values)
         search_queries.append(
             models.SearchRequest(
-                vector=models.NamedSparseVector(name=sparse_name, vector=sparse_vector),
+                vector=models.NamedSparseVector(
+                    name=sparse_name, vector=query_embedding
+                ),
                 limit=top_k,
                 filter=filter,
                 with_payload=True,
@@ -130,8 +110,8 @@ def sparse_search(
 
 
 def hybrid_search(
-    query_embeddings: list[list[float]],
-    query_texts: list[str],
+    dense_query_embeddings: list[list[float]],
+    sparse_query_embeddings: list[tuple[list[int], list[float]]],
     collection_name: str,
     top_k: int = 5,
     overfetch_mul: float = 2.0,
@@ -140,13 +120,6 @@ def hybrid_search(
     sparse_name: str = config.SPARSE_MODEL,
 ) -> list[list[dict]]:
     client = get_qdrant_client()
-    vocab = _load_vocab(collection_name)
-
-    tokenized_query_texts = tokenize(
-        texts=query_texts,
-        word_process_method=config.WORD_PROCESS_METHOD,
-        return_ids=False,
-    )
 
     if fusion_method.lower() == "dbsf":
         fm = models.Fusion.DBSF
@@ -156,18 +129,22 @@ def hybrid_search(
         raise ValueError(f"Invalid fusion method: {fusion_method}")
 
     query_requests: list[models.QueryRequest] = []
-    for i, tokens in enumerate(tokenized_query_texts):
-        sparse_vector = sparse_query_vectorize(tokens=tokens, vocab=vocab)
+    for i, (dense_embedding, (sparse_indices, sparse_values)) in enumerate(
+        zip(dense_query_embeddings, sparse_query_embeddings)
+    ):
+        sparse_embedding = models.SparseVector(
+            indices=sparse_indices, values=sparse_values
+        )
         query_requests.append(
             models.QueryRequest(
                 prefetch=[
                     models.Prefetch(
-                        query=query_embeddings[i],
+                        query=dense_embedding,
                         using=dense_name,
                         limit=int(top_k * overfetch_mul),
                     ),
                     models.Prefetch(
-                        query=sparse_vector,
+                        query=sparse_embedding,
                         using=sparse_name,
                         limit=int(top_k * overfetch_mul),
                     ),

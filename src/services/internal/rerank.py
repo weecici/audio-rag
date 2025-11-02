@@ -6,7 +6,7 @@ from src.core import config
 
 
 @lru_cache(maxsize=1)
-def get_reranking_model() -> CrossEncoder:
+def _get_reranking_model() -> CrossEncoder:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Loading reranking model {config.RERANKING_MODEL} on device: {device}")
     model = CrossEncoder(
@@ -17,7 +17,7 @@ def get_reranking_model() -> CrossEncoder:
 
 
 def rerank(queries: list[str], candidates: list[list[dict]]) -> list[list[dict]]:
-    model = get_reranking_model()
+    model = _get_reranking_model()
 
     if len(candidates) == 0:
         return [[] for _ in queries]

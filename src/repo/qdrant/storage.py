@@ -48,8 +48,7 @@ def ensure_collection_exists(
 def upsert_data(
     nodes: list[BaseNode],
     dense_embeddings: list[list[float]],
-    sparse_embeddings: Optional[csr_matrix],
-    vocab: Optional[dict[str, int]],
+    sparse_embeddings: Optional[list[tuple[list[int], list[float]]]],
     collection_name: str,
     dense_name: str = config.DENSE_MODEL,
     sparse_name: str = config.SPARSE_MODEL,
@@ -59,14 +58,13 @@ def upsert_data(
         raise ValueError("No nodes provided for upserting")
 
     if len(dense_embeddings) != len(nodes):
-        raise ValueError("All nodes must have embeddings attached before upserting")
-
-    if sparse_embeddings is not None and sparse_embeddings.shape != (
-        len(nodes),
-        len(vocab),
-    ):
         raise ValueError(
-            f"Sparse embeddings shape {sparse_embeddings.shape} does not match expected shape ({len(nodes)}, {len(vocab)})"
+            f"The number of dense embeddings ({len(dense_embeddings)}) must match the number of nodes ({len(nodes)})"
+        )
+
+    if sparse_embeddings is not None and len(sparse_embeddings) != len(nodes):
+        raise ValueError(
+            f"The number of sparse embeddings ({len(sparse_embeddings)}) must match the number of nodes ({len(nodes)})"
         )
 
     client = get_qdrant_client()
@@ -77,20 +75,15 @@ def upsert_data(
         vector_size=vector_size,
     )
 
-    def sparse_vectorize(i: int) -> models.SparseVector:
-        start = sparse_embeddings.indptr[i]
-        end = sparse_embeddings.indptr[i + 1]
-        indices: list[int] = sparse_embeddings.indices[start:end].tolist()
-        values: list[float] = sparse_embeddings.data[start:end].tolist()
-
-        return models.SparseVector(indices=indices, values=values)
-
     points: list[models.PointStruct] = []
     for i, node in enumerate(nodes):
+        print("curr:", i)
         vector_map: dict[str, object] = {
             dense_name: dense_embeddings[i],
             sparse_name: (
-                sparse_vectorize(i)
+                models.SparseVector(
+                    indices=sparse_embeddings[i][0], values=sparse_embeddings[i][1]
+                )
                 if sparse_embeddings is not None
                 else models.SparseVector(indices=[], values=[])
             ),
@@ -112,14 +105,6 @@ def upsert_data(
         collection_name=collection_name,
         points=points,
     )
-
-    # Storing vocab on local disk for later use
-    if vocab is not None:
-        vocab_path = os.path.join(
-            config.DISK_STORAGE_PATH, f"{collection_name}_vocab.json"
-        )
-        with open(vocab_path, "w") as f:
-            json.dump(vocab, f)
 
     # Qdrant returns UpdateStatus.ACKNOWLEDGED or COMPLETED
     if out.status not in (

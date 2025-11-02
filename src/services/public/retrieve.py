@@ -1,7 +1,7 @@
 import inngest
 from fastapi import status
 from src import schemas
-from src.services.internal import dense_encode, rerank
+from src.services.internal import dense_encode, sparse_encode, rerank
 from src.repo.qdrant import dense_search, sparse_search, hybrid_search
 from src.repo.local import index_retrieve
 from src.services.internal import fuse_results
@@ -18,15 +18,33 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
             f"Starting document retrieval process for the {len(request.queries)} input queries."
         )
 
-        # Generate embeddings for the queries
-        if request.mode == "dense" or request.mode == "hybrid":
-            query_embeddings = dense_encode(texts=request.queries, text_type="query")
-            if len(query_embeddings) != len(request.queries):
+        # Generate dense embeddings for the queries
+        if request.mode in ["dense", "hybrid"]:
+            dense_query_embeddings = dense_encode(
+                texts=request.queries, text_type="query"
+            )
+            if len(dense_query_embeddings) != len(request.queries):
                 raise ValueError(
-                    f"Query embeddings generation failed or returned incorrect count: {len(query_embeddings)}"
+                    f"Query embeddings generation failed or returned incorrect count: {len(dense_query_embeddings)}"
                 )
             ctx.logger.info(
-                f"Generated {len(query_embeddings)} query embeddings with each embedding's length is: {len(query_embeddings[0])}"
+                f"Generated {len(dense_query_embeddings)} query embeddings with each embedding's length is: {len(dense_query_embeddings[0])}"
+            )
+
+        # Generate sparse embeddings for the queries
+        if (
+            request.mode in ["sparse", "hybrid"]
+            and request.sparse_process_method == "sparse_embedding"
+        ):
+            sparse_query_embeddings = sparse_encode(
+                texts=request.queries, text_type="query"
+            )
+            if len(sparse_query_embeddings) != len(request.queries):
+                raise ValueError(
+                    f"Sparse query embeddings generation failed or returned incorrect count: {len(sparse_query_embeddings)}"
+                )
+            ctx.logger.info(
+                f"Generated {len(sparse_query_embeddings)} sparse query embeddings"
             )
 
         # Retrieve documents based on the specified mode
@@ -36,14 +54,14 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
         results: list[list[dict]] | None = None
         if request.mode == "dense":
             results = dense_search(
-                query_embeddings=query_embeddings,
+                query_embeddings=dense_query_embeddings,
                 collection_name=request.collection_name,
                 top_k=request.top_k,
             )
         elif request.mode == "sparse":
-            if request.sparse_process_method == "sparse_matrix":
+            if request.sparse_process_method == "sparse_embedding":
                 results = sparse_search(
-                    query_texts=request.queries,
+                    query_embeddings=sparse_query_embeddings,
                     collection_name=request.collection_name,
                     top_k=request.top_k,
                 )
@@ -54,10 +72,10 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
                     top_k=request.top_k,
                 )
         elif request.mode == "hybrid":
-            if request.sparse_process_method == "sparse_matrix":
+            if request.sparse_process_method == "sparse_embedding":
                 results = hybrid_search(
-                    query_embeddings=query_embeddings,
-                    query_texts=request.queries,
+                    dense_query_embeddings=dense_query_embeddings,
+                    sparse_query_embeddings=sparse_query_embeddings,
                     collection_name=request.collection_name,
                     top_k=request.top_k,
                     overfetch_mul=request.overfetch_mul,
@@ -66,7 +84,7 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
                 overfetch_amount = int(request.top_k * request.overfetch_mul)
 
                 dense_results = dense_search(
-                    query_embeddings=query_embeddings,
+                    query_embeddings=dense_query_embeddings,
                     collection_name=request.collection_name,
                     top_k=overfetch_amount,
                 )

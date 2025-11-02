@@ -37,30 +37,23 @@ def ingest_documents(ctx: inngest.Context) -> schemas.IngestionResponse:
             text_type="document",
         )
 
-        if len(dense_embeddings) != len(nodes):
-            raise ValueError(
-                f"Embeddings generation failed or returned incorrect count: {len(dense_embeddings)}"
-            )
-
         ctx.logger.info(
-            f"Generated {len(nodes)} dense embeddings with each embedding's size is: {len(dense_embeddings[0])}"
+            f"Generated {len(dense_embeddings)} dense embeddings with each embedding's size is: {len(dense_embeddings[0])}"
         )
 
         if request.sparse_process_method == "sparse_embedding":
             # Create sparse embeddings for the docs
-            sparse_embeddings, vocab = sparse_encode(
+            sparse_embeddings = sparse_encode(
+                text_type="document",
                 texts=[node.text for node in nodes],
             )
 
-            ctx.logger.info(
-                f"Generated sparse embeddings with shape: {sparse_embeddings.shape}"
-            )
+            ctx.logger.info(f"Generated {len(sparse_embeddings)} sparse embeddings.")
 
             upsert_data(
                 nodes=nodes,
                 dense_embeddings=dense_embeddings,
                 sparse_embeddings=sparse_embeddings,
-                vocab=vocab,
                 collection_name=request.collection_name,
             )
         else:
@@ -84,7 +77,6 @@ def ingest_documents(ctx: inngest.Context) -> schemas.IngestionResponse:
                 nodes=nodes,
                 dense_embeddings=dense_embeddings,
                 sparse_embeddings=None,
-                vocab=None,
                 collection_name=request.collection_name,
             )
 

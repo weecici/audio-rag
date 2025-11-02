@@ -1,47 +1,43 @@
-import os
-import bm25s
-import numpy as np
-import nltk
-from nltk import WordNetLemmatizer, SnowballStemmer
-from scipy.sparse import csc_matrix, csr_matrix
-from typing import Literal, Optional
-from src.utils import tokenize
+import torch
+from sentence_transformers import SparseEncoder
+from functools import lru_cache
+from typing import Literal
 from src.core import config
 
-nltk.download("wordnet")
+
+@lru_cache(maxsize=1)
+def _get_embedding_model() -> SparseEncoder:
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Loading sparse embedding model {config.SPARSE_MODEL} on device: {device}")
+    model = SparseEncoder(
+        model_name_or_path=config.SPARSE_MODEL_PATH,
+        device=device,
+    )
+    return model
 
 
 def sparse_encode(
+    text_type: Literal["document", "query"],
     texts: list[str],
-    word_process_method: Literal["lemmatize", "stem"] = config.WORD_PROCESS_METHOD,
-    bm25_method: str = "robertson",
-    bm25_idf_method: Optional[str] = None,
-    k1: float = 1.5,
-    b: float = 0.75,
-    delta: float = 1.5,
-) -> tuple[csr_matrix, dict[str, int]]:
+    batch_size: int = 8,
+) -> list[tuple[list[int], list[float]]]:
+    model = _get_embedding_model()
+    embeddings: torch.Tensor = torch.Tensor([])
 
-    text_tokens = tokenize(texts=texts, word_process_method=word_process_method)
-    vocab = text_tokens.vocab.copy()
+    if text_type == "query":
+        embeddings = model.encode_query(sentences=texts, batch_size=batch_size)
+    elif text_type == "document":
+        embeddings = model.encode_document(sentences=texts, batch_size=batch_size)
+    else:
+        raise ValueError(f"Unsupported text_type: {text_type}")
 
-    retriever = bm25s.BM25(
-        method=bm25_method, idf_method=bm25_idf_method, k1=k1, b=b, delta=delta
-    )
-    retriever.index(text_tokens)
+    embeddings = embeddings.cpu().coalesce()
 
-    TEMP_STORAGE_PATH = "./.storage/tmp_bm25_index"
+    final_embeddings = []
+    for i in range(embeddings.shape[0]):
+        item_mask = embeddings.indices()[0] == i
+        indices = embeddings.indices()[1][item_mask].tolist()
+        values = embeddings.values()[item_mask].tolist()
+        final_embeddings.append((indices, values))
 
-    retriever.save(TEMP_STORAGE_PATH)
-    data = np.load(os.path.join(TEMP_STORAGE_PATH, "data.csc.index.npy"), mmap_mode="r")
-    indices = np.load(
-        os.path.join(TEMP_STORAGE_PATH, "indices.csc.index.npy"), mmap_mode="r"
-    )
-    indptr = np.load(
-        os.path.join(TEMP_STORAGE_PATH, "indptr.csc.index.npy"), mmap_mode="r"
-    )
-
-    sparse_embeddings = csc_matrix(
-        (data, indices, indptr), shape=(len(texts), len(vocab))
-    ).tocsr()
-
-    return sparse_embeddings, vocab
+    return final_embeddings
