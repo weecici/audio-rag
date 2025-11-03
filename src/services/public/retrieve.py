@@ -28,7 +28,7 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
                     f"Query embeddings generation failed or returned incorrect count: {len(dense_query_embeddings)}"
                 )
             ctx.logger.info(
-                f"Generated {len(dense_query_embeddings)} query embeddings with each embedding's length is: {len(dense_query_embeddings[0])}"
+                f"Generated {len(dense_query_embeddings)} dense query embeddings with each embedding's length is: {len(dense_query_embeddings[0])}"
             )
 
         # Generate sparse embeddings for the queries

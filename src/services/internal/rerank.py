@@ -7,17 +7,18 @@ from src.core import config
 
 @lru_cache(maxsize=1)
 def _get_reranking_model() -> CrossEncoder:
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Loading reranking model {config.RERANKING_MODEL} on device: {device}")
-    model = CrossEncoder(
-        model_name_or_path=config.RERANKING_MODEL_PATH,
-        device=device,
-    )
+    print(f"Loading reranking model: {config.RERANKING_MODEL}")
+    model = CrossEncoder(model_name_or_path=config.RERANKING_MODEL_PATH, device="cpu")
     return model
 
 
-def rerank(queries: list[str], candidates: list[list[dict]]) -> list[list[dict]]:
+def rerank(
+    queries: list[str], candidates: list[list[dict]], batch_size: int = 8
+) -> list[list[dict]]:
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     model = _get_reranking_model()
+    model = model.to(device=device)
 
     if len(candidates) == 0:
         return [[] for _ in queries]
@@ -34,7 +35,7 @@ def rerank(queries: list[str], candidates: list[list[dict]]) -> list[list[dict]]
     if not sentence_pairs:
         return []
 
-    scores = model.predict(sentence_pairs, show_progress_bar=True)
+    scores = model.predict(sentence_pairs, batch_size=batch_size)
 
     reranked_results: list[list[dict]] = []
     score_idx = 0
@@ -53,5 +54,10 @@ def rerank(queries: list[str], candidates: list[list[dict]]) -> list[list[dict]]
             current_reranked.append(candidate)
 
         reranked_results.append(current_reranked)
+
+    # move to cpu to save gpu memory
+    if model.device.type != "cpu":
+        model = model.to(device="cpu")
+    torch.cuda.empty_cache()
 
     return reranked_results

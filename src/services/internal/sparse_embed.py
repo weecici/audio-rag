@@ -7,12 +7,8 @@ from src.core import config
 
 @lru_cache(maxsize=1)
 def _get_embedding_model() -> SparseEncoder:
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Loading sparse embedding model {config.SPARSE_MODEL} on device: {device}")
-    model = SparseEncoder(
-        model_name_or_path=config.SPARSE_MODEL_PATH,
-        device=device,
-    )
+    print(f"Loading sparse embedding model: {config.SPARSE_MODEL}")
+    model = SparseEncoder(model_name_or_path=config.SPARSE_MODEL_PATH, device="cpu")
     return model
 
 
@@ -21,7 +17,11 @@ def sparse_encode(
     texts: list[str],
     batch_size: int = 8,
 ) -> list[tuple[list[int], list[float]]]:
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     model = _get_embedding_model()
+    model = model.to(device=device)
+
     embeddings: torch.Tensor = torch.Tensor([])
 
     if text_type == "query":
@@ -39,5 +39,11 @@ def sparse_encode(
         indices = embeddings.indices()[1][item_mask].tolist()
         values = embeddings.values()[item_mask].tolist()
         final_embeddings.append((indices, values))
+
+    # move to cpu to save gpu memory
+    if model.device.type != "cpu":
+        model = model.to(device="cpu")
+
+    torch.cuda.empty_cache()
 
     return final_embeddings
