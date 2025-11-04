@@ -9,16 +9,26 @@ from pgvector.psycopg import register_vector
 from src import schemas
 from src.core import config
 from src.services.internal import fuse_results
-from .storage import get_pg_conn, ensure_collection_exists, SPARSE_DIM
+from .storage import get_pg_conn, ensure_collection_exists
 
 
 def _rows_to_results(
     rows: list[tuple],
+    *,
+    distance_to_similarity: Optional[callable] = None,
 ) -> list[schemas.RetrievedDocument]:
     results: list[schemas.RetrievedDocument] = []
     for row in rows:
         # row: (id, score, text, document_id, title, file_name, file_path)
         (rid, score, text, document_id, title, file_name, file_path) = row
+        # Convert distance to similarity if requested
+        sim_score = float(score)
+        if distance_to_similarity is not None:
+            try:
+                sim_score = float(distance_to_similarity(sim_score))
+            except Exception:
+                # Fallback to raw score if conversion fails
+                sim_score = float(score)
         payload = schemas.DocumentPayload(
             text=text,
             metadata=schemas.DocumentMetadata(
@@ -31,7 +41,7 @@ def _rows_to_results(
         results.append(
             schemas.RetrievedDocument(
                 id=rid,
-                score=float(score),
+                score=sim_score,
                 payload=payload,
             )
         )
@@ -71,7 +81,10 @@ def dense_search(
             vec = Vector(emb)
             cur.execute(query_tmpl, (vec, vec, top_k))
             rows = cur.fetchall()
-            all_results.append(_rows_to_results(rows))
+            # cosine distance -> similarity in [-1, 1] via (1 - distance)
+            all_results.append(
+                _rows_to_results(rows, distance_to_similarity=lambda d: 1.0 - d)
+            )
 
     return all_results
 
@@ -88,14 +101,14 @@ def sparse_search(
     query_tmpl = sql.SQL(
         """
 		SELECT id,
-			   {sparse_col} <=> %s AS score,
+               {sparse_col} <#> %s AS score,
 			   text,
 			   document_id,
 			   title,
 			   file_name,
 			   file_path
 		FROM {table}
-		ORDER BY {sparse_col} <=> %s
+        ORDER BY {sparse_col} <#> %s
 		LIMIT %s;
 		"""
     ).format(
@@ -110,11 +123,15 @@ def sparse_search(
                 all_results.append([])
                 continue
             vec = SparseVector(
-                {int(i): float(v) for i, v in zip(indices, values)}, SPARSE_DIM
+                {int(i): float(v) for i, v in zip(indices, values)}, config.SPARSE_DIM
             )
             cur.execute(query_tmpl, (vec, vec, top_k))
             rows = cur.fetchall()
-            all_results.append(_rows_to_results(rows))
+            # inner product operator <#> returns negative dot product by design
+            # convert to positive similarity = -value (sum of weights)
+            all_results.append(
+                _rows_to_results(rows, distance_to_similarity=lambda v: -v)
+            )
 
     return all_results
 
@@ -130,17 +147,18 @@ def hybrid_search(
     sparse_name: str = config.SPARSE_MODEL,
 ) -> list[list[schemas.RetrievedDocument]]:
     # Overfetch separately then fuse client-side
-    overfetch = max(top_k, int(top_k * overfetch_mul))
+    overfetch_amount = max(top_k, int(top_k * overfetch_mul))
+
     dense_results = dense_search(
         query_embeddings=dense_query_embeddings,
         collection_name=collection_name,
-        top_k=overfetch,
+        top_k=overfetch_amount,
         dense_name=dense_name,
     )
     sparse_results = sparse_search(
         query_embeddings=sparse_query_embeddings,
         collection_name=collection_name,
-        top_k=overfetch,
+        top_k=overfetch_amount,
         sparse_name=sparse_name,
     )
 

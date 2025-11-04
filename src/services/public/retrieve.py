@@ -2,7 +2,7 @@ from fastapi import status
 from src import schemas
 from src.utils import logger
 from src.services.internal import dense_encode, sparse_encode, rerank
-from src.repo.qdrant import dense_search, sparse_search, hybrid_search
+from src.repo.postgres import dense_search, sparse_search, hybrid_search
 from src.repo.local import index_retrieve
 from src.services.internal import fuse_results
 
@@ -78,7 +78,9 @@ def retrieve_documents(request: schemas.RetrievalRequest) -> schemas.RetrievalRe
                     overfetch_mul=request.overfetch_mul,
                 )
             else:
-                overfetch_amount = int(request.top_k * request.overfetch_mul)
+                overfetch_amount = max(
+                    request.top_k, int(request.top_k * request.overfetch_mul)
+                )
 
                 dense_results = dense_search(
                     query_embeddings=dense_query_embeddings,

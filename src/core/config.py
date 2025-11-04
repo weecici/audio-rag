@@ -13,6 +13,7 @@ DENSE_MODEL_PATH = os.getenv("EMBEDDING_MODEL_PATH", "google/embeddinggemma-300m
 DENSE_DIM = int(os.getenv("DENSE_DIM", 768))
 SPARSE_MODEL = os.getenv("SPARSE_MODEL", "splade-v3")
 SPARSE_MODEL_PATH = os.getenv("SPARSE_MODEL_PATH", "naver/splade-v3")
+SPARSE_DIM = int(os.getenv("SPARSE_DIM", "131072"))
 RERANKING_MODEL = os.getenv("RERANKING_MODEL", "bge-reranker-v2-m3")
 RERANKING_MODEL_PATH = os.getenv("RERANKING_MODEL_PATH", "BAAI/bge-reranker-v2-m3")
 DISK_STORAGE_PATH = os.getenv("DISK_STORAGE_PATH", "./.storage")

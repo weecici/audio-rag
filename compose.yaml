@@ -1,5 +1,5 @@
 services:
-  db:
+  db-pg:
     image: pgvector/pgvector:pg18
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -9,6 +9,13 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pg}
       POSTGRES_DB: ${POSTGRES_DB:-cs419_db}
+    
+  # db-qdrant:
+  #   image: qdrant/qdrant:dev
+  #   ports:
+  #     - "${QDRANT_PORT:-6333}:6333"
+  #   volumes:
+  #     - ./.storage/qdrant_data:/qdrant/storage
 
 volumes:
   pg_data:

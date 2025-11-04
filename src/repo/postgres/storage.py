@@ -13,12 +13,6 @@ from src import schemas
 from src.core import config
 
 
-# Default sparse dimension if using sparse embeddings with Postgres/pgvector.
-# SPLADE/BERT vocabularies are typically around 30k. We pick a safe default and
-# allow overriding with the SPARSE_DIM env var.
-SPARSE_DIM: int = int(os.getenv("SPARSE_DIM", "131072"))
-
-
 def _get_db_params() -> dict:
     return {
         "host": os.getenv("POSTGRES_HOST", "localhost"),
@@ -34,12 +28,12 @@ def get_pg_conn() -> psycopg.Connection:
     params = _get_db_params()
     conn = psycopg.connect(**params)
     conn.autocommit = True
-    # Register pgvector types (vector, sparsevec, halfvec)
-    register_vector(conn)
-
-    # Ensure extension is available
+    # Ensure extension is available before registering adapters
     with conn.cursor() as cur:
         cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+
+    # Register pgvector types (vector, sparsevec, halfvec)
+    register_vector(conn)
     return conn
 
 
@@ -92,7 +86,7 @@ def ensure_collection_exists(
 				WHERE c.relname = {idx_name}
 			) THEN
 				CREATE INDEX {index} ON {table}
-				USING ivfflat ({dense_col} vector_cosine_ops) WITH (lists = 100);
+				USING hnsw ({dense_col} vector_cosine_ops) WITH (m = 32, ef_construction = 128);
 			END IF;
 		END $$;
 		"""
@@ -111,7 +105,7 @@ def ensure_collection_exists(
 def _to_sparsevec(indices: list[int], values: list[float]) -> SparseVector:
     # Convert indices/values to dict form required by SparseVector with dimension
     elem = {int(i): float(v) for i, v in zip(indices, values)}
-    return SparseVector(elem, SPARSE_DIM)
+    return SparseVector(elem, config.SPARSE_DIM)
 
 
 def upsert_data(

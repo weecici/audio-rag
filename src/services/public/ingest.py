@@ -8,7 +8,7 @@ from src.services.internal import (
     sparse_encode,
     build_inverted_index,
 )
-from src.repo.qdrant import upsert_data
+from src.repo.postgres import upsert_data
 from src.repo.local import store_index
 
 
