@@ -1,16 +1,14 @@
 import os
+import psycopg
 from functools import lru_cache
 from typing import Optional
-
-import psycopg
 from psycopg import sql
 from pgvector import Vector, SparseVector
 from pgvector.psycopg import register_vector
-
 from llama_index.core.schema import BaseNode
-
 from src import schemas
 from src.core import config
+from src.utils import logger
 
 
 def _get_db_params() -> dict:
@@ -28,11 +26,10 @@ def get_pg_conn() -> psycopg.Connection:
     params = _get_db_params()
     conn = psycopg.connect(**params)
     conn.autocommit = True
-    # Ensure extension is available before registering adapters
+
     with conn.cursor() as cur:
         cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
 
-    # Register pgvector types (vector, sparsevec, halfvec)
     register_vector(conn)
     return conn
 
@@ -41,18 +38,9 @@ def ensure_collection_exists(
     collection_name: str,
     dense_name: str = config.DENSE_MODEL,
     sparse_name: str = config.SPARSE_MODEL,
-    vector_size: int = config.DENSE_DIM,
+    dense_dim: int = config.DENSE_DIM,
+    sparse_dim: int = config.SPARSE_DIM,
 ) -> None:
-    """
-    Ensure a Postgres table exists to store documents and embeddings.
-
-    Columns:
-    - id (TEXT primary key)
-    - text (TEXT)
-    - document metadata fields
-    - dense vector column named after dense_name (quoted identifier)
-    - sparse vector column named after sparse_name (quoted identifier)
-    """
     conn = get_pg_conn()
 
     create_table = sql.SQL(
@@ -64,18 +52,18 @@ def ensure_collection_exists(
 			title TEXT,
 			file_name TEXT,
 			file_path TEXT,
-			{dense_col} vector({vector_size}) NOT NULL,
-			{sparse_col} sparsevec
+			{dense_col} vector({dense_dim}) NOT NULL,
+			{sparse_col} sparsevec({sparse_dim})
 		);
 		"""
     ).format(
         table=sql.Identifier(collection_name),
         dense_col=sql.Identifier(dense_name),
         sparse_col=sql.Identifier(sparse_name),
-        vector_size=sql.Literal(int(vector_size)),
+        dense_dim=sql.Literal(int(dense_dim)),
+        sparse_dim=sql.Literal(int(sparse_dim)),
     )
 
-    # ivfflat works with vector_cosine_ops for cosine distance
     create_dense_index = sql.SQL(
         """
 		DO $$
@@ -115,7 +103,8 @@ def upsert_data(
     collection_name: str,
     dense_name: str = config.DENSE_MODEL,
     sparse_name: str = config.SPARSE_MODEL,
-    vector_size: int = config.DENSE_DIM,
+    dense_dim: int = config.DENSE_DIM,
+    sparse_dim: int = config.SPARSE_DIM,
 ) -> None:
     if not nodes:
         raise ValueError("No nodes provided for upserting")
@@ -135,7 +124,8 @@ def upsert_data(
         collection_name=collection_name,
         dense_name=dense_name,
         sparse_name=sparse_name,
-        vector_size=vector_size,
+        dense_dim=dense_dim,
+        sparse_dim=sparse_dim,
     )
 
     insert_stmt = sql.SQL(

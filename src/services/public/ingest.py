@@ -1,4 +1,3 @@
-import inngest
 from fastapi import status
 from src import schemas
 from src.utils import logger

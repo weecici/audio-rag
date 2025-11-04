@@ -1,14 +1,12 @@
-from typing import Optional, Literal
-import math
-
 import psycopg
+from typing import Optional, Literal
 from psycopg import sql
 from pgvector import Vector, SparseVector
 from pgvector.psycopg import register_vector
-
 from src import schemas
 from src.core import config
 from src.services.internal import fuse_results
+from src.utils import logger
 from .storage import get_pg_conn, ensure_collection_exists
 
 
@@ -27,7 +25,6 @@ def _rows_to_results(
             try:
                 sim_score = float(distance_to_similarity(sim_score))
             except Exception:
-                # Fallback to raw score if conversion fails
                 sim_score = float(score)
         payload = schemas.DocumentPayload(
             text=text,
@@ -57,6 +54,10 @@ def dense_search(
     conn = get_pg_conn()
     ensure_collection_exists(collection_name=collection_name, dense_name=dense_name)
 
+    logger.info(
+        f"pgvector.dense_search collection={collection_name} top_k={top_k} using={dense_name} op=<=> (cosine distance)"
+    )
+
     query_tmpl = sql.SQL(
         """
 		SELECT id,
@@ -81,6 +82,19 @@ def dense_search(
             vec = Vector(emb)
             cur.execute(query_tmpl, (vec, vec, top_k))
             rows = cur.fetchall()
+            if not rows:
+                logger.debug("pgvector.dense_search: 0 candidates")
+            else:
+                preview = min(5, len(rows))
+                for i in range(preview):
+                    rid, dist, *_ = rows[i]
+                    try:
+                        d = float(dist)
+                    except Exception:
+                        d = 0.0
+                    logger.debug(
+                        f"dense cand[{i}] id={rid} dist={d:.6f} sim={1.0 - d:.6f}"
+                    )
             # cosine distance -> similarity in [-1, 1] via (1 - distance)
             all_results.append(
                 _rows_to_results(rows, distance_to_similarity=lambda d: 1.0 - d)
@@ -97,6 +111,10 @@ def sparse_search(
 ) -> list[list[schemas.RetrievedDocument]]:
     conn = get_pg_conn()
     ensure_collection_exists(collection_name=collection_name, sparse_name=sparse_name)
+
+    logger.info(
+        f"pgvector.sparse_search collection={collection_name} top_k={top_k} using={sparse_name} dim={config.SPARSE_DIM} op=<#> (inner product)"
+    )
 
     query_tmpl = sql.SQL(
         """
@@ -127,7 +145,21 @@ def sparse_search(
             )
             cur.execute(query_tmpl, (vec, vec, top_k))
             rows = cur.fetchall()
-            # inner product operator <#> returns negative dot product by design
+
+            if not rows:
+                logger.debug("pgvector.sparse_search: 0 candidates")
+            else:
+                preview = min(5, len(rows))
+                for i in range(preview):
+                    rid, neg_ip, *_ = rows[i]
+                    try:
+                        nip = float(neg_ip)
+                    except Exception:
+                        nip = 0.0
+                    logger.debug(
+                        f"sparse cand[{i}] id={rid} neg_ip={nip:.6f} ip={-nip:.6f}"
+                    )
+
             # convert to positive similarity = -value (sum of weights)
             all_results.append(
                 _rows_to_results(rows, distance_to_similarity=lambda v: -v)

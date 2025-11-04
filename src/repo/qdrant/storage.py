@@ -15,7 +15,7 @@ def ensure_collection_exists(
     collection_name: str,
     dense_name: str = config.DENSE_MODEL,
     sparse_name: str = config.SPARSE_MODEL,
-    vector_size: int = config.DENSE_DIM,
+    dense_dim: int = config.DENSE_DIM,
 ) -> None:
     client = get_qdrant_client()
 
@@ -28,7 +28,7 @@ def ensure_collection_exists(
         collection_name=collection_name,
         vectors_config={
             dense_name: models.VectorParams(
-                size=vector_size,
+                size=dense_dim,
                 distance=models.Distance.COSINE,
                 hnsw_config=models.HnswConfigDiff(
                     m=32,
@@ -50,7 +50,7 @@ def upsert_data(
     collection_name: str,
     dense_name: str = config.DENSE_MODEL,
     sparse_name: str = config.SPARSE_MODEL,
-    vector_size: int = config.DENSE_DIM,
+    dense_dim: int = config.DENSE_DIM,
 ) -> None:
     if not nodes:
         raise ValueError("No nodes provided for upserting")
@@ -70,7 +70,7 @@ def upsert_data(
         collection_name=collection_name,
         dense_name=dense_name,
         sparse_name=sparse_name,
-        vector_size=vector_size,
+        dense_dim=dense_dim,
     )
 
     points: list[models.PointStruct] = []
