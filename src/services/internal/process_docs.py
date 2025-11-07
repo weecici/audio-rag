@@ -1,7 +1,6 @@
 import uuid
 from src import schemas
-from src.core import config
-from llama_index.core import Document, SimpleDirectoryReader
+from llama_index.core import SimpleDirectoryReader
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.schema import TextNode
 

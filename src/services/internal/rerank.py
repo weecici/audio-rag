@@ -1,7 +1,6 @@
 import torch
 from functools import lru_cache
 from sentence_transformers import CrossEncoder
-from scipy.special import softmax
 from src import schemas
 from src.core import config
 from src.utils import logger

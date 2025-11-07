@@ -1,4 +1,3 @@
-import os
 import psycopg
 from uuid import UUID
 from functools import lru_cache

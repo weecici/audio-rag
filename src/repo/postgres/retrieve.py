@@ -1,10 +1,7 @@
-import psycopg
 from typing import Optional, Literal
-from collections import Counter, defaultdict
-import heapq
+from collections import Counter
 from psycopg import sql
 from pgvector import Vector, SparseVector
-from pgvector.psycopg import register_vector
 from src import schemas
 from src.core import config
 from src.services.internal import fuse_results
