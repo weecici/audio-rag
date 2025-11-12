@@ -4,7 +4,6 @@ from psycopg import sql
 from pgvector import Vector
 from src import schemas
 from src.core import config
-from src.services.internal import fuse_results
 from src.utils import *
 from ._storage import (
     get_pg_conn,

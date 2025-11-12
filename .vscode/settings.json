@@ -4,11 +4,11 @@
       "ssh": "Disabled",
       "previewLimit": 50,
       "server": "localhost",
+      "port": 5433,
       "driver": "PostgreSQL",
-      "database": "cs419_db",
+      "name": "cs431",
+      "database": "cs431_db",
       "username": "postgres",
-      "name": "cs419",
-      "connectString": "postgresql://postgres:pg@localhost:5432/cs419_db",
       "password": "pg"
     }
   ]

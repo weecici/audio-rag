@@ -8,6 +8,7 @@ rng = random.Random(42)
 
 # llm provider api key
 CEREBRAS_API_KEY = os.getenv("CEREBRAS_API_KEY", None)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", None)
 
 # dense model
 DENSE_MODEL = os.getenv("DENSE_MODEL", "embeddinggemma-300m")
