@@ -20,6 +20,7 @@ def download_audio(
     out_dir: Union[str, Path] = config.AUDIO_STORAGE_PATH,
     filename_template: str = "%(title)s $ %(id)s.%(ext)s",
     codec: str = "wav",
+    sample_rate: Optional[int] = 16000,
     quality_kbps: str = "192",
     overwrite: bool = True,
     allow_playlist: bool = False,
@@ -39,6 +40,11 @@ def download_audio(
 
     outtmpl = os.path.join(str(base_dir), filename_template)
 
+    # Prepare post-processor args for ffmpeg
+    pp_args: list[str] = ["-y"]
+    if sample_rate:
+        pp_args.extend(["-ar", str(sample_rate)])
+
     ydl_opts: dict[str, Any] = {
         "format": "bestaudio/best",
         "outtmpl": outtmpl,
@@ -56,8 +62,8 @@ def download_audio(
                 "preferredquality": quality_kbps,
             }
         ],
-        # Remove original file if postprocessing succeeds
-        "postprocessor_args": ["-y"],
+        # Extra args for ffmpeg (applied to postprocessing), include sample rate
+        "postprocessor_args": pp_args,
         "logger": logger,
     }
 
