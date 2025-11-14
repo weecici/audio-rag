@@ -6,6 +6,8 @@ from src.utils import logger
 
 @lru_cache(maxsize=1)
 def _get_llm_client() -> Cerebras:
+    if not config.CEREBRAS_API_KEY:
+        raise RuntimeError("CEREBRAS_API_KEY not set")
     logger.info("Initializing Cerebras LLM client")
     client = Cerebras(api_key=config.CEREBRAS_API_KEY)
     return client

@@ -8,7 +8,11 @@ rng = random.Random(42)
 
 # llm provider api key
 CEREBRAS_API_KEY = os.getenv("CEREBRAS_API_KEY", None)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", None)
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", None)
+
+# chunking config
+MAX_TOKENS = int(os.getenv("MAX_TOKENS", "1024"))
+OVERLAP_TOKENS = int(os.getenv("OVERLAP_TOKENS", "200"))
 
 # dense model
 DENSE_MODEL = os.getenv("DENSE_MODEL", "embeddinggemma-300m")
@@ -37,6 +41,9 @@ POSTGRES_DB = os.getenv("POSTGRES_DB", "cs419_db")
 LOCAL_STORAGE_PATH = os.getenv("LOCAL_STORAGE_PATH", "./.storage")
 AUDIO_STORAGE_PATH = os.path.join(LOCAL_STORAGE_PATH, "audios")
 TRANSCRIPT_STORAGE_PATH = os.path.join(LOCAL_STORAGE_PATH, "transcripts")
+CHUNKED_TRANSCRIPT_STORAGE_PATH = os.path.join(
+    LOCAL_STORAGE_PATH, "chunked_transcripts"
+)
 
 # speech to text
 SPEECH2TEXT_MODEL = os.getenv("SPEECH2TEXT_MODEL", "small")

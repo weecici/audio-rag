@@ -95,12 +95,12 @@ def ingest_audios(request: schemas.AudioIngestionRequest) -> schemas.IngestionRe
             collection_name=request.collection_name, file_paths=transcript_paths
         )
 
-        transcript_ingest_response = ingest_documents(request=doc_ingest_request)
+        # transcript_ingest_response = ingest_documents(request=doc_ingest_request)
 
-        if transcript_ingest_response.status != status.HTTP_201_CREATED:
-            raise ValueError(
-                f"Document ingestion failed during audio ingestion: {transcript_ingest_response.message}"
-            )
+        # if transcript_ingest_response.status != status.HTTP_201_CREATED:
+        #     raise ValueError(
+        #         f"Document ingestion failed during audio ingestion: {transcript_ingest_response.message}"
+        #     )
 
         return schemas.IngestionResponse(
             status=status.HTTP_200_OK,
