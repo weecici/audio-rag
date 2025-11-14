@@ -1,7 +1,7 @@
 import os
 import re
 from google import genai
-from typing import Union, Any
+from typing import Literal
 from functools import lru_cache
 from src.core import config
 from src.utils import logger
@@ -46,6 +46,33 @@ Now process the transcript below using these rules **(slowly and carefully)**:
 
 document_chunking_template = """
 You are an expert at chunking documents for information retrieval systems. Follow these rules exactly and produce only the requested output — no explanations or extra text.
+
+Parameters (replace placeholders):
+- max_token (default: {max_token}): maximum tokens per chunk (model tokens, e.g., using tiktoken cl100k_base). Approx: 1 token ≈ 0.75 words.
+- raw_document (will be provided later): the raw document text.
+- lang (default: {lang}): main language of the document. If omitted, detect language automatically.
+
+1. Correct only non-substantive syntax errors: punctuation, obvious typos, unmatched quotes, and spacing. Do NOT paraphrase, summarize, condense, or change facts or technical expressions.
+2. Chunk boundaries must be at natural linguistic boundaries (sentence boundaries). Do not break sentences across chunks, except when a single sentence exceeds {max_token} tokens (see rule 8).
+3. Each chunk must be coherent and contextually relevant. Aim for semantic unity (a chunk should cover a single topic/idea or tightly related set of sentences).
+4. Maximum chunk size is {max_token} tokens. Use the specified tokenizer to count tokens.
+5. Title each chunk with a short topic name (in the document's main language, also mustn't contain some characters that are not allowed for filenames) followed by start and end times as integers, using the exact format:
+   <title> | <start_time> | <end_time>
+6. Fallback for very long sentences: if one sentence alone exceeds {max_token} tokens, split it at natural clause boundaries (commas, semicolons, conjunctions). Mark the split by appending " (continued)" to the first part and prefixing the second part with "(continued) ". Try to minimize meaning changes.
+7. Output formatting: produce consecutive chunks separated by a line of ten equals signs "==========" and each chunk must follow exactly this template:
+
+<title N> | <start_time N> | <end_time N>
+++++++++++
+<chunk_text N>
+
+==========
+(repeat for all chunks)
+
+8. Do not use any markdown styling (no bold, italic, underline). Do not convert math to LaTeX. Keep math expressions verbatim.
+9. Do not add any commentary, metadata, or notes outside the specified format. The assistant's response must contain only the chunks formatted as above.
+
+Now process the document below using these rules **(slowly and carefully)**:
+{document}
 """
 
 
@@ -58,33 +85,40 @@ def _get_client() -> genai.Client:
     return client
 
 
-def _ensure_list(transcripts: Union[str, list[str]]) -> list[str]:
-    if isinstance(transcripts, str):
-        return [transcripts]
-    return transcripts
+def parse_response_into_chunks(
+    response_text: str, text_type: Literal["transcript", "document"] = "transcript"
+) -> list[tuple[str, str]]:
 
-
-def parse_response_into_chunks(response_text: str) -> list[tuple[str, str]]:
     chunk_separator = "\n=========="
     chunks = response_text.strip().split(chunk_separator)
+    title_template = (
+        "{title} $ {start_time} $ {end_time}"
+        if text_type == "transcript"
+        else "{title}"
+    )
     parsed_chunks = []
-
-    title_template = "{title} $ {start_time} $ {end_time}"
 
     for chunk in chunks:
         try:
-            title_line, chunk_text = chunk.split("\n++++++++++\n", 1)
-            title_parts = title_line.split(" | ")
-            if len(title_parts) != 3:
-                logger.warning(f"Unexpected title format: {title_line}")
-                continue
-            title, start_time, end_time = title_parts
-            title = title_template.format(
-                title=title.strip(),
-                start_time=start_time.strip(),
-                end_time=end_time.strip(),
-            )
+            if text_type == "transcript":
+                title_line, chunk_text = chunk.split("\n++++++++++\n", 1)
+                title_parts = title_line.split(" | ")
+                if len(title_parts) != 3:
+                    logger.warning(f"Unexpected title format: {title_line}")
+                    continue
+                title, start_time, end_time = title_parts
+                title = title_template.format(
+                    title=title.strip(),
+                    start_time=start_time.strip(),
+                    end_time=end_time.strip(),
+                )
+
+            else:  # document
+                title_line, chunk_text = chunk.split("\n++++++++++\n", 1)
+                title = title_template.format(title=title_line.strip())
+
             parsed_chunks.append((title, chunk_text.strip()))
+
         except Exception as e:
             logger.error(f"Error parsing chunk: {e}")
             continue
@@ -92,7 +126,8 @@ def parse_response_into_chunks(response_text: str) -> list[tuple[str, str]]:
 
 
 def chunk_transcript(
-    transcript: str,
+    raw_text: str,
+    text_type: Literal["transcript", "document"] = "transcript",
     save_outputs: bool = False,
     output_dir: str = config.CHUNKED_TRANSCRIPT_STORAGE_PATH,
     max_tokens: int = config.MAX_TOKENS,
@@ -101,13 +136,22 @@ def chunk_transcript(
     client = _get_client()
 
     try:
-        prompt = transcript_chunking_template.format(
-            transcript=transcript, max_token=max_tokens, lang="vi"
-        )
+        if text_type == "transcript":
+            prompt = transcript_chunking_template.format(
+                transcript=raw_text, max_token=max_tokens, lang="vi"
+            )
+        elif text_type == "document":
+            prompt = document_chunking_template.format(
+                document=raw_text, max_token=max_tokens, lang="vi"
+            )
+        else:
+            raise ValueError(f"Invalid text_type: {text_type}")
 
         response = client.models.generate_content(model=MODEL_ID, contents=prompt)
 
-        chunks = parse_response_into_chunks(response.text)
+        chunks = parse_response_into_chunks(
+            response_text=response.text, text_type=text_type
+        )
 
         if save_outputs:
             os.makedirs(output_dir, exist_ok=True)
