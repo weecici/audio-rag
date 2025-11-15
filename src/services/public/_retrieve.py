@@ -9,7 +9,9 @@ from src.repo.postgres import (
 )
 
 
-def retrieve_documents(request: schemas.RetrievalRequest) -> schemas.RetrievalResponse:
+async def retrieve_documents(
+    request: schemas.RetrievalRequest,
+) -> schemas.RetrievalResponse:
     try:
         if not request.queries:
             raise ValueError("No query text provided in event data.")

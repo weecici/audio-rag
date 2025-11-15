@@ -14,7 +14,7 @@ router = APIRouter()
 )
 async def generate_responses(ctx: inngest.Context) -> dict[str, any]:
     request = schemas.GenerationRequest.model_validate(ctx.event.data)
-    return public_svcs.generate_responses(request).model_dump()
+    return (await public_svcs.generate_responses(request)).model_dump()
 
 
 @router.post(
@@ -24,4 +24,4 @@ async def generate_responses(ctx: inngest.Context) -> dict[str, any]:
     description="Generate responses based on the provided queries and retrieved documents.",
 )
 async def generate(request: schemas.GenerationRequest) -> schemas.GenerationResponse:
-    return public_svcs.generate_responses(request)
+    return await public_svcs.generate_responses(request)

@@ -1,5 +1,4 @@
 import os
-import re
 from google import genai
 from typing import Literal
 from functools import lru_cache
@@ -22,7 +21,7 @@ Behavior rules:
 2. Remove all original timestamps and timestamp markers from the chunk text. Keep speaker labels only if they are essential; otherwise remove them.
 3. Compute each chunk's start_time and end_time (in seconds) from the original timestamps and display them in the chunk title. Round to the nearest integer second (0.5 → round up). 
 4. Chunk boundaries must be at natural linguistic boundaries (sentence boundaries). Do not break sentences across chunks, except when a single sentence exceeds {max_token} tokens (see rule 8).
-5. Each chunk must be coherent and contextually relevant. Aim for semantic unity (a chunk should cover a single topic/idea or tightly related set of sentences).
+5. Each chunk must be coherent and contextually relevant. Aim for semantic unity (a chunk should cover a single topic/idea or tightly related set of sentences). However, don't break the transcript too small which results in many small chunks that do not contain useful information for retrieval at all. (this is VERY IMPORTANT)
 6. Maximum chunk size is {max_token} tokens. Use the specified tokenizer to count tokens.
 7. Title each chunk with a short topic name (in the transcript's main language, also mustn't contain some characters that are not allowed for filenames) followed by start and end times as integers, using the exact format:
    <title> | <start_time> | <end_time>
@@ -54,7 +53,7 @@ Parameters (replace placeholders):
 
 1. Correct only non-substantive syntax errors: punctuation, obvious typos, unmatched quotes, and spacing. Do NOT paraphrase, summarize, condense, or change facts or technical expressions.
 2. Chunk boundaries must be at natural linguistic boundaries (sentence boundaries). Do not break sentences across chunks, except when a single sentence exceeds {max_token} tokens (see rule 8).
-3. Each chunk must be coherent and contextually relevant. Aim for semantic unity (a chunk should cover a single topic/idea or tightly related set of sentences).
+3. Each chunk must be coherent and contextually relevant. Aim for semantic unity (a chunk should cover a single topic/idea or tightly related set of sentences). However, don't break the transcript too small which results in many small chunks that do not contain useful information for retrieval at all. (this is VERY IMPORTANT)
 4. Maximum chunk size is {max_token} tokens. Use the specified tokenizer to count tokens.
 5. Title each chunk with a short topic name (in the document's main language, also mustn't contain some characters that are not allowed for filenames) followed by start and end times as integers, using the exact format:
    <title> | <start_time> | <end_time>
@@ -131,7 +130,7 @@ def chunk_transcript(
     save_outputs: bool = True,
     output_dir: str = config.CHUNKED_TRANSCRIPT_STORAGE_PATH,
     max_tokens: int = config.MAX_TOKENS,
-) -> list[list[tuple[str, str]]]:
+) -> list[tuple[str, str]]:
     """Return a list of list of tuples: (title, chunk_text) with len = len(filepaths)"""
 
     client = _get_client()

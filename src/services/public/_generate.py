@@ -5,7 +5,7 @@ from src.utils import logger
 from ._retrieve import retrieve_documents
 
 
-def generate_responses(
+async def generate_responses(
     request: schemas.GenerationRequest,
 ) -> schemas.GenerationResponse:
     try:

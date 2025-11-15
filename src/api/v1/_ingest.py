@@ -36,7 +36,7 @@ async def ingest(
 )
 async def ingest_audios(ctx: inngest.Context) -> dict[str, any]:
     request = schemas.AudioIngestionRequest.model_validate(ctx.event.data)
-    return public_svcs.ingest_audios(request).model_dump()
+    return (await public_svcs.ingest_audios(request)).model_dump()
 
 
 @router.post(
@@ -46,4 +46,4 @@ async def ingest_audios(ctx: inngest.Context) -> dict[str, any]:
     description="Ingest audio files from the specified file paths or youtube links.",
 )
 async def ingest(request: schemas.AudioIngestionRequest) -> schemas.IngestionResponse:
-    return public_svcs.ingest_audios(request)
+    return await public_svcs.ingest_audios(request)

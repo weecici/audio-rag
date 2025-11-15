@@ -14,7 +14,7 @@ router = APIRouter()
 )
 async def retrieve_documents(ctx: inngest.Context) -> dict[str, any]:
     request = schemas.RetrievalRequest.model_validate(ctx.event.data)
-    return public_svcs.retrieve_documents(request).model_dump()
+    return (await public_svcs.retrieve_documents(request)).model_dump()
 
 
 @router.post(
@@ -24,4 +24,4 @@ async def retrieve_documents(ctx: inngest.Context) -> dict[str, any]:
     description="Retrieve documents based on the provided queries.",
 )
 async def retrieve(request: schemas.RetrievalRequest) -> schemas.RetrievalResponse:
-    return public_svcs.retrieve_documents(request)
+    return await public_svcs.retrieve_documents(request)
