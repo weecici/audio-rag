@@ -21,7 +21,7 @@ async def ingest_documents(
             f"Starting documents ingestion process to the collection '{request.collection_name}'..."
         )
 
-        nodes = process_documents(
+        nodes = await process_documents(
             file_paths=request.file_paths, file_dir=request.file_dir
         )
 

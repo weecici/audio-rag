@@ -1,11 +1,12 @@
 import uuid
 import re
+import asyncio
 from src import schemas
 from pathlib import Path
 from llama_index.core import SimpleDirectoryReader
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.schema import TextNode
-from ._chunk import chunk_transcript
+from ._chunk import chunk_text
 
 
 splitter = SentenceSplitter(chunk_size=512, chunk_overlap=64)
@@ -33,12 +34,14 @@ def _is_transcript_file(filepath: str) -> bool:
     return False
 
 
-def process_documents(file_paths: list[str], file_dir: str) -> list[TextNode]:
+async def process_documents(file_paths: list[str], file_dir: str) -> list[TextNode]:
 
     reader = SimpleDirectoryReader(input_files=file_paths, input_dir=file_dir)
     docs = reader.load_data()
 
-    nodes = []
+    nodes: list[TextNode] = []
+    tasks = []
+    docs_info: list[tuple[str, str, str]] = []  # (document_id, filename, filepath)
     for doc in docs:
         filepath = doc.metadata.get("file_path", "unknown")
         filename = Path(doc.metadata.get("file_name", "unknown")).stem
@@ -48,15 +51,22 @@ def process_documents(file_paths: list[str], file_dir: str) -> list[TextNode]:
         audio_url = parts[1].strip() if len(parts) == 2 else audio_title
 
         doc.doc_id = audio_url
+        docs_info.append((audio_url, filename, filepath))
 
         text_type = "transcript" if _is_transcript_file(filepath) else "document"
-        chunks = chunk_transcript(raw_text=doc.text, text_type=text_type)
+        tasks.append(
+            asyncio.create_task(chunk_text(raw_text=doc.text, text_type=text_type))
+        )
 
+    all_chunks: list[list[tuple[str, str]]] = await asyncio.gather(*tasks)
+
+    for i, chunks in enumerate(all_chunks):
+        document_id, filename, filepath = docs_info[i]
         for title, chunk in chunks:
-            node_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{title}_{doc.doc_id}"))
+            node_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{title}_{document_id}"))
 
             metadata = schemas.DocumentMetadata(
-                document_id=doc.doc_id,
+                document_id=document_id,
                 title=title,
                 file_name=filename,
                 file_path=filepath,
