@@ -107,8 +107,10 @@ def parse_response_into_chunks(
     parsed_chunks = []
 
     for chunk in chunks:
+        title_line = "unknown"
         try:
             title_line, chunk_text = chunk.split("\n++++++++++\n", 1)
+            title_line = title_line.replace("/", "-")  # sanitize filename
             if text_type == "transcript":
                 title_parts = title_line.split(" | ")
                 if len(title_parts) != 3:
@@ -126,7 +128,7 @@ def parse_response_into_chunks(
             parsed_chunks.append((title, chunk_text.strip()))
 
         except Exception as e:
-            logger.error(f"Error parsing chunk: {e}")
+            logger.error(f"Error parsing chunk {title_line}: {e}")
             continue
     return parsed_chunks
 
@@ -169,7 +171,7 @@ async def chunk_text(
                 config=model_config,
             )
 
-        if response is None or not response.text is None:
+        if response is None or response.text is None:
             raise RuntimeError("No response from Gemini model")
 
         chunks = parse_response_into_chunks(

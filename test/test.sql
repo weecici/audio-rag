@@ -1,14 +1,14 @@
 SELECT    *
-FROM      dump;
+FROM      cs431;
 
 SELECT    *
-FROM      dump_df;
+FROM      cs431_df;
 
 SELECT    *
-FROM      dump_pl;
+FROM      cs431_pl;
 
-DROP      TABLE if EXISTS dump_pl;
+DROP      TABLE if EXISTS cs431_pl;
 
-DROP      TABLE if EXISTS dump_df;
+DROP      TABLE if EXISTS cs431_df;
 
-DROP      TABLE if EXISTS dump;
+DROP      TABLE if EXISTS cs431;
