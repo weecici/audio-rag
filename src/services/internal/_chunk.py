@@ -108,8 +108,8 @@ def parse_response_into_chunks(
 
     for chunk in chunks:
         try:
+            title_line, chunk_text = chunk.split("\n++++++++++\n", 1)
             if text_type == "transcript":
-                title_line, chunk_text = chunk.split("\n++++++++++\n", 1)
                 title_parts = title_line.split(" | ")
                 if len(title_parts) != 3:
                     logger.warning(f"Unexpected title format: {title_line}")
@@ -120,9 +120,7 @@ def parse_response_into_chunks(
                     start_time=start_time.strip(),
                     end_time=end_time.strip(),
                 )
-
             else:  # document
-                title_line, chunk_text = chunk.split("\n++++++++++\n", 1)
                 title = title_template.format(title=title_line.strip())
 
             parsed_chunks.append((title, chunk_text.strip()))
@@ -170,6 +168,9 @@ async def chunk_text(
                 contents=prompt,
                 config=model_config,
             )
+
+        if response is None or not response.text is None:
+            raise RuntimeError("No response from Gemini model")
 
         chunks = parse_response_into_chunks(
             response_text=response.text, text_type=text_type

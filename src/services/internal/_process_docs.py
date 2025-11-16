@@ -61,17 +61,24 @@ async def process_documents(file_paths: list[str], file_dir: str) -> list[TextNo
 
     for i, chunks in enumerate(all_chunks):
         audio_url, audio_title, filepath = docs_info[i]
-        for title, chunk in chunks:
-            node_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{title}_{audio_url}"))
 
-            metadata = schemas.DocumentMetadata(
-                document_id=audio_url,
-                title=title,
-                file_name=audio_title,
-                file_path=filepath,
-            )
+        try:
+            if chunks == []:
+                raise ValueError("No chunks returned from chunking process")
+            for title, chunk in chunks:
+                node_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{title}_{audio_url}"))
 
-            node = TextNode(id_=node_id, text=chunk, metadata=metadata.model_dump())
-            nodes.append(node)
+                metadata = schemas.DocumentMetadata(
+                    document_id=audio_url,
+                    title=title,
+                    file_name=audio_title,
+                    file_path=filepath,
+                )
+
+                node = TextNode(id_=node_id, text=chunk, metadata=metadata.model_dump())
+                nodes.append(node)
+        except Exception as e:
+            print(f"Error processing chunks for {audio_title}: {e}")
+            continue
 
     return nodes
