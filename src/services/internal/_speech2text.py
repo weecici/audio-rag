@@ -45,6 +45,7 @@ def transcribe_audio(
     os.makedirs(out_dir, exist_ok=True)
 
     transcripts = []
+    filepaths = []
     for audio_path in audio_paths:
         try:
             logger.info(f"Transcribing audio file: {audio_path}")
@@ -58,29 +59,25 @@ def transcribe_audio(
                 s, e, t = segment.start, segment.end, segment.text.strip()
                 transcript += f"[{s:.2f}s - {e:.2f}s] {t}\n"
 
-            transcripts.append(transcript)
-            logger.info(f"Completed transcription for: {audio_path}")
+            # Write out the transcript
+            audio_filename = Path(audio_path).stem
+            transcript_path = os.path.join(out_dir, f"{audio_filename}.txt")
+            with open(transcript_path, "w", encoding="utf-8") as f:
+                f.write(transcript)
+
+            filepaths.append(transcript_path)
+
+            logger.info(f"Completed saving transcription for: {audio_path}")
         except Exception as e:
             logger.error(f"Error transcribing {audio_path}: {e}")
             transcripts.append("")
             continue
 
-    filenames = []
-    for audio_path, transcript in zip(audio_paths, transcripts):
-        if transcript == "":
-            continue
-        audio_filename = Path(audio_path).stem
-        transcript_path = os.path.join(out_dir, f"{audio_filename}.txt")
-        with open(transcript_path, "w", encoding="utf-8") as f:
-            f.write(transcript)
-
-        filenames.append(transcript_path)
-
     if batched_model.model.model.device == "cuda":
         batched_model.model.model.unload_model()
         torch.cuda.empty_cache()
 
-    return filenames
+    return filepaths
 
 
 ### DEPRECATED CODE USING ORIGINAL WHISPER MODEL

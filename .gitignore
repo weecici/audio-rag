@@ -16,4 +16,4 @@ data*/**
 .hf/
 .storage/
 
-test.py
+test*.py
