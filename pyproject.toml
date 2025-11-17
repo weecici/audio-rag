@@ -25,4 +25,5 @@ dependencies = [
     "openai-whisper>=20250625",
     "protobuf>=6.33.1",
     "faster-whisper>=1.2.1",
+    "streamlit>=1.51.0",
 ]
