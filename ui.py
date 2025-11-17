@@ -20,7 +20,7 @@ def get_default_api_base() -> str:
     return f"http://{host}:{port}/api/v1"
 
 
-st.set_page_config(page_title="CS431 RAG Chat", page_icon="💬", layout="wide")
+st.set_page_config(page_title="CS431 RAG Chat", layout="wide")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []  # list[dict(role, content, sources?)]
