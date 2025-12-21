@@ -16,4 +16,8 @@ data*/**
 .hf/
 .storage/
 
+doc/
+!doc/main.tex
+!doc/main.pdf
+
 test*.py

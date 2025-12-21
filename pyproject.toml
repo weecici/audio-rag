@@ -26,4 +26,5 @@ dependencies = [
     "protobuf>=6.33.1",
     "faster-whisper>=1.2.1",
     "streamlit>=1.51.0",
+    "rouge>=1.0.1",
 ]
