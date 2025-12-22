@@ -40,6 +40,7 @@ if "settings" not in st.session_state:
         "mode": "hybrid",
         "overfetch_mul": 2.0,
         "rerank_enabled": False,
+        "summarization_enabled": False,
         "model_name": "gpt-oss-120b",
     }
 
@@ -56,11 +57,13 @@ if "is_generating" not in st.session_state:
     st.session_state.is_generating = False
 if "pending_input" not in st.session_state:
     st.session_state.pending_input = None
+if "pending_chat_id" not in st.session_state:
+    st.session_state.pending_chat_id = None
 if "show_settings" not in st.session_state:
     st.session_state.show_settings = False
 
 
-def _truncate_one_line(text: str, max_chars: int = 28) -> str:
+def _truncate_one_line(text: str, max_chars: int = 25) -> str:
     """Return a single-line truncated string with ellipsis if too long.
     - Collapses any newlines into spaces so it never wraps to a second line.
     - Cuts at max_chars and appends … if truncation occurs.
@@ -110,8 +113,7 @@ def _new_chat():
     st.session_state.chat_editing[chat_id] = False
     st.session_state.current_chat_id = chat_id
     st.session_state.messages = st.session_state.chats[chat_id]["messages"]
-    st.session_state.pending_input = None
-    st.session_state.is_generating = False
+    # Do not clear pending_input here, so background generation can continue
     return chat_id
 
 
@@ -119,16 +121,84 @@ def _new_chat():
 # Sidebar (settings)
 # -------------------------------
 with st.sidebar:
-    st.title("App")
+    st.title("Config")
 
-    # Keep API base in the sidebar
-    api_base = st.text_input(
-        "API base URL",
-        value=st.session_state.settings.get("api_base", get_default_api_base()),
-        help="FastAPI base URL (ends with /api/v1)",
-        key="api_base_sidebar",
+    st.markdown(
+        """
+        <style>
+            section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"] .stButton button {
+                text-align: left;
+                justify-content: flex-start;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
     )
-    st.session_state.settings["api_base"] = api_base.rstrip("/")
+
+    with st.expander("Settings", expanded=False):
+        # Keep API base in the sidebar
+        api_base = st.text_input(
+            "API base URL",
+            value=st.session_state.settings.get("api_base", get_default_api_base()),
+            help="API URL of the backend service",
+            key="api_base_sidebar",
+        )
+        st.session_state.settings["api_base"] = api_base.rstrip("/")
+
+        st.session_state.settings["collection_name"] = st.text_input(
+            "Collection",
+            value=st.session_state.settings.get("collection_name", "documents"),
+            key="sidebar_collection_name",
+        )
+        st.session_state.settings["top_k"] = st.slider(
+            "Top-K",
+            min_value=1,
+            max_value=20,
+            value=int(st.session_state.settings.get("top_k", 5)),
+            key="sidebar_top_k",
+        )
+        st.session_state.settings["mode"] = st.selectbox(
+            "Mode",
+            options=["dense", "sparse", "hybrid"],
+            index=["dense", "sparse", "hybrid"].index(
+                st.session_state.settings.get("mode", "hybrid")
+            ),
+            key="sidebar_mode",
+        )
+        st.session_state.settings["overfetch_mul"] = float(
+            st.number_input(
+                "Overfetch multiplier",
+                min_value=1.0,
+                max_value=10.0,
+                value=float(st.session_state.settings.get("overfetch_mul", 2.0)),
+                step=0.5,
+                key="sidebar_overfetch",
+            )
+        )
+        st.session_state.settings["rerank_enabled"] = st.checkbox(
+            "Rerank enabled",
+            value=bool(st.session_state.settings.get("rerank_enabled", False)),
+            key="sidebar_rerank",
+        )
+        st.session_state.settings["summarization_enabled"] = st.checkbox(
+            "Summarization enabled",
+            value=bool(st.session_state.settings.get("summarization_enabled", False)),
+            key="sidebar_summarization",
+        )
+        model_options = [
+            "gpt-oss-120b",
+            "llama-3.3-70b",
+            "qwen-3-235b-a22b-thinking-2507",
+            "qwen-3-coder-480b",
+        ]
+        st.session_state.settings["model_name"] = st.selectbox(
+            "LLM",
+            options=model_options,
+            index=model_options.index(
+                st.session_state.settings.get("model_name", "gpt-oss-120b")
+            ),
+            key="sidebar_model",
+        )
 
     st.markdown("---")
     st.title("Chats History")
@@ -136,38 +206,63 @@ with st.sidebar:
     # Ensure chat state
     _ensure_default_chat()
 
-    if st.button("➕ New chat", use_container_width=True, key="new_chat_btn"):
+    if st.button("New chat", use_container_width=True, key="new_chat_btn"):
         _new_chat()
         st.rerun()
 
     # Chat list with expandable option popover/expander (ellipsis menu)
-    for cid, chat in list(st.session_state.chats.items()):
+    # Sort by created_at descending (newest first) if available, else insertion order reversed
+    # We'll just reverse the items list for now as a proxy for "newest first"
+    chats_desc = list(st.session_state.chats.items())[::-1]
+
+    for cid, chat in chats_desc:
         if cid not in st.session_state.chat_editing:
             st.session_state.chat_editing[cid] = False
-        # Fallback state only needed for expander fallback
-        if cid not in st.session_state.chat_menu_open:
-            st.session_state.chat_menu_open[cid] = False
 
-        row = st.container()
-        with row:
-            cols = st.columns([0.92, 0.08], gap=None)
-            with cols[0]:
-                full_title = chat.get("title", "Untitled")
-                label = _truncate_one_line(full_title, max_chars=20)
-                if st.button(
-                    label,
-                    key=f"open_chat_{cid}",
-                    use_container_width=True,
-                    help=full_title,
-                ):
-                    st.session_state.current_chat_id = cid
-                    st.session_state.messages = chat["messages"]
+        # If we are editing this chat, show the edit UI in place of the button
+        if st.session_state.chat_editing[cid]:
+            with st.container():
+                new_title = st.text_input(
+                    "Title",
+                    value=chat.get("title", "Untitled"),
+                    key=f"edit_input_{cid}",
+                    label_visibility="collapsed",
+                )
+                c1, c2 = st.columns(2)
+                if c1.button("Save", key=f"save_{cid}", use_container_width=True):
+                    chat["title"] = new_title.strip() or "Untitled"
+                    st.session_state.chat_editing[cid] = False
                     st.rerun()
-            with cols[1]:
-                # Streamlit popover for expandable options; stack actions vertically
-                with st.popover(label="", type="tertiary", help="Chat actions"):
-                    st.caption(f"Chat: {chat.get('title','Untitled')}")
-                    if not st.session_state.chat_editing[cid]:
+                if c2.button("Cancel", key=f"cancel_{cid}", use_container_width=True):
+                    st.session_state.chat_editing[cid] = False
+                    st.rerun()
+        else:
+            # Normal display
+            row = st.container()
+            with row:
+                cols = st.columns([0.9, 0.1], gap=None)
+                with cols[0]:
+                    full_title = chat.get("title", "Untitled")
+                    label = _truncate_one_line(full_title)
+                    is_active = cid == st.session_state.current_chat_id
+                    if st.button(
+                        label,
+                        key=f"open_chat_{cid}",
+                        use_container_width=True,
+                        help=full_title,
+                        type="primary" if is_active else "secondary",
+                    ):
+                        st.session_state.current_chat_id = cid
+                        st.session_state.messages = chat["messages"]
+                        st.rerun()
+                with cols[1]:
+                    # Streamlit popover for expandable options
+                    with st.popover(
+                        "",
+                        type="tertiary",
+                        help="Chat actions",
+                        use_container_width=True,
+                    ):
                         if st.button(
                             "Rename",
                             key=f"popover_rename_btn_{cid}",
@@ -183,45 +278,28 @@ with st.sidebar:
                             try:
                                 del st.session_state.chats[cid]
                                 st.session_state.chat_editing.pop(cid, None)
-                                st.session_state.chat_menu_open.pop(cid, None)
                             except KeyError:
                                 pass
+
+                            # If we deleted the current chat, switch to another
                             if (
                                 st.session_state.current_chat_id == cid
                                 or st.session_state.current_chat_id
                                 not in st.session_state.chats
                             ):
                                 if st.session_state.chats:
+                                    # Pick the first one available (which is the last one in our reversed list, i.e. the newest remaining?)
+                                    # Actually just pick any.
                                     st.session_state.current_chat_id = next(
                                         iter(st.session_state.chats.keys())
                                     )
                                 else:
                                     _new_chat()
+
+                            # Update messages reference
                             st.session_state.messages = st.session_state.chats[
                                 st.session_state.current_chat_id
                             ]["messages"]
-                            st.rerun()
-                    else:
-                        # Rename flow inside popover
-                        new_title = st.text_input(
-                            "New title",
-                            value=chat.get("title", "Untitled"),
-                            key=f"popover_rename_input_{cid}",
-                        )
-                        if st.button(
-                            "Save",
-                            key=f"popover_save_btn_{cid}",
-                            use_container_width=True,
-                        ):
-                            chat["title"] = new_title.strip() or "Untitled"
-                            st.session_state.chat_editing[cid] = False
-                            st.rerun()
-                        if st.button(
-                            "Cancel",
-                            key=f"popover_cancel_btn_{cid}",
-                            use_container_width=True,
-                        ):
-                            st.session_state.chat_editing[cid] = False
                             st.rerun()
 
 
@@ -237,6 +315,7 @@ def post_generate(query: str) -> Optional[schemas.GenerationResponse]:
         mode=st.session_state.settings["mode"],
         overfetch_mul=st.session_state.settings["overfetch_mul"],
         rerank_enabled=st.session_state.settings["rerank_enabled"],
+        summarization_enabled=st.session_state.settings["summarization_enabled"],
         model_name=st.session_state.settings["model_name"],
     )
 
@@ -307,26 +386,52 @@ def render_sources(docs: List[schemas.RetrievedDocument]):
         return
     for idx, d in enumerate(docs, start=1):
         meta = d.payload.metadata
-        parts = meta.title.split("||")
+
+        # Default values
+        src_title = f"Source {idx}: {meta.file_name}"
         video_url = None
         start_time = None
-        if len(parts) == 3:
-            title, start_time, end_time = (
-                parts[0].strip(),
-                parts[1].strip(),
-                parts[2].strip(),
-            )
-            video_id = Path(meta.file_path).stem.split("$")[1].strip()
-            video_url = f"https://youtu.be/{video_id}"
-            src_title = f"Source {idx}: {title} (from {start_time}s to {end_time}s in {meta.file_name})"
-        else:
-            src_title = f"Source {idx}: {meta.title} (in {meta.file_name})"
+
+        try:
+            parts = meta.title.split("||")
+            if len(parts) == 3:
+                title, start_str, end_str = (
+                    parts[0].strip(),
+                    parts[1].strip(),
+                    parts[2].strip(),
+                )
+
+                # Try to parse start_time
+                try:
+                    start_time = int(float(start_str))
+                except ValueError:
+                    start_time = 0
+
+                # Try to extract video_id from file path if it follows convention
+                # e.g. "some_name$VIDEO_ID.mp3"
+                try:
+                    stem = Path(meta.file_path).stem
+                    if "$" in stem:
+                        video_id = stem.split("$")[1].strip()
+                        video_url = f"https://youtu.be/{video_id}"
+                except Exception:
+                    pass
+
+                src_title = f"Source {idx}: {title} | {start_str}s - {end_str}s in {meta.file_name}"
+            else:
+                src_title = f"Source {idx}: {meta.title} (in {meta.file_name})"
+        except Exception:
+            # If parsing fails, keep defaults
+            pass
+
         with st.expander(src_title):
-            if video_url:
-                st.video(video_url, start_time=(int(start_time)))
-                st.caption(f"▶ {meta.file_name}")
-            st.markdown(f"**File name:** `{meta.file_name}`")
-            st.markdown(f"**Path:** `{meta.file_path}`")
+            if video_url and start_time is not None:
+                try:
+                    st.video(video_url, start_time=start_time)
+                    st.caption(f"▶ {meta.file_name}")
+                except Exception:
+                    st.warning("Could not load video.")
+
             st.markdown("---")
             st.write(d.payload.text)
 
@@ -337,85 +442,11 @@ def render_sources(docs: List[schemas.RetrievedDocument]):
 
 
 def render_chat():
-    # Title row with settings button on the right
-    title_cols = st.columns([10, 1])
-    with title_cols[0]:
-        st.title("RAG Chat")
-        st.caption("Assistant powered by CS431 - PhD. Nguyen Vinh Tiep.")
-    with title_cols[1]:
-        # Settings toggle button aligned to the right of title
-        if st.button(
-            "⚙",
-            help="Show/hide RAG settings",
-            key="rag_settings_toggle_btn",
-            use_container_width=True,
-        ):
-            st.session_state.show_settings = not st.session_state.show_settings
-            st.rerun()
+    st.title("RAG Chat")
+    st.caption("Assistant powered by CS431 - PhD. Nguyen Vinh Tiep.")
 
     # Ensure chat state and bind messages to the current chat
     _ensure_default_chat()
-
-    # Render the settings panel if visible (inline, above chat messages)
-    if st.session_state.show_settings:
-        with st.container():
-            st.markdown("---")
-            st.markdown("### ⚙ Settings")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.session_state.settings["collection_name"] = st.text_input(
-                    "Collection",
-                    value=st.session_state.settings.get("collection_name", "documents"),
-                    key="inline_collection_name",
-                )
-                st.session_state.settings["top_k"] = st.slider(
-                    "Top-K",
-                    min_value=1,
-                    max_value=20,
-                    value=int(st.session_state.settings.get("top_k", 5)),
-                    key="inline_top_k",
-                )
-                st.session_state.settings["mode"] = st.selectbox(
-                    "Mode",
-                    options=["dense", "sparse", "hybrid"],
-                    index=["dense", "sparse", "hybrid"].index(
-                        st.session_state.settings.get("mode", "hybrid")
-                    ),
-                    key="inline_mode",
-                )
-            with col2:
-                st.session_state.settings["overfetch_mul"] = float(
-                    st.number_input(
-                        "Overfetch multiplier",
-                        min_value=1.0,
-                        max_value=10.0,
-                        value=float(
-                            st.session_state.settings.get("overfetch_mul", 2.0)
-                        ),
-                        step=0.5,
-                        key="inline_overfetch",
-                    )
-                )
-                st.session_state.settings["rerank_enabled"] = st.checkbox(
-                    "Rerank enabled",
-                    value=bool(st.session_state.settings.get("rerank_enabled", False)),
-                    key="inline_rerank",
-                )
-                model_options = [
-                    "gpt-oss-120b",
-                    "llama-3.3-70b",
-                    "qwen-3-235b-a22b-thinking-2507",
-                    "qwen-3-coder-480b",
-                ]
-                st.session_state.settings["model_name"] = st.selectbox(
-                    "LLM",
-                    options=model_options,
-                    index=model_options.index(
-                        st.session_state.settings.get("model_name", "gpt-oss-120b")
-                    ),
-                    key="inline_model",
-                )
-            st.markdown("---")
 
     # History
     for msg in st.session_state.messages:
@@ -442,38 +473,72 @@ def render_chat():
                 "…" if len(user_input) > 30 else ""
             )
         st.session_state.pending_input = user_input
+        st.session_state.pending_chat_id = st.session_state.current_chat_id
         st.session_state.is_generating = True
         st.rerun()
 
     # If we have a staged input, perform generation now
     if st.session_state.pending_input is not None:
         pending = st.session_state.pending_input
-        # Render the just-added user message block (already in history above)
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking…"):
+        target_chat_id = st.session_state.get("pending_chat_id")
+        if target_chat_id is None:
+            target_chat_id = st.session_state.current_chat_id
+
+        is_current = target_chat_id == st.session_state.current_chat_id
+
+        # If we are in the target chat, show the spinner in the chat flow.
+        # Otherwise, show a global spinner or just run in background.
+        if is_current:
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking…"):
+                    resp: Optional[schemas.GenerationResponse] = None
+                    try:
+                        resp = post_generate(pending)
+                    finally:
+                        # Ensure we reset flags even on error
+                        st.session_state.pending_input = None
+                        st.session_state.is_generating = False
+
+                if resp is None:
+                    st.error("Failed to get a response.")
+                else:
+                    # Take the first response for the single query
+                    answer = resp.responses[0] if resp.responses else "(empty)"
+                    sources = (
+                        resp.summarized_docs_list[0]
+                        if resp.summarized_docs_list
+                        else []
+                    )
+
+                    st.write(answer)
+                    render_sources(sources)
+
+                    # Append to the target chat (which is current)
+                    if target_chat_id in st.session_state.chats:
+                        st.session_state.chats[target_chat_id]["messages"].append(
+                            {"role": "assistant", "content": answer, "sources": sources}
+                        )
+        else:
+            # Background generation (user switched chat)
+            with st.spinner(f"Generating response for another chat..."):
                 resp: Optional[schemas.GenerationResponse] = None
                 try:
                     resp = post_generate(pending)
                 finally:
-                    # Ensure we reset flags even on error
                     st.session_state.pending_input = None
                     st.session_state.is_generating = False
-
-            if resp is None:
-                st.error("Failed to get a response.")
-            else:
-                # Take the first response for the single query
+            
+            if resp is not None:
                 answer = resp.responses[0] if resp.responses else "(empty)"
                 sources = (
-                    resp.summarized_docs_list[0] if resp.summarized_docs_list else []
+                    resp.summarized_docs_list[0]
+                    if resp.summarized_docs_list
+                    else []
                 )
-
-                st.write(answer)
-                render_sources(sources)
-
-                st.session_state.messages.append(
-                    {"role": "assistant", "content": answer, "sources": sources}
-                )
+                if target_chat_id in st.session_state.chats:
+                    st.session_state.chats[target_chat_id]["messages"].append(
+                        {"role": "assistant", "content": answer, "sources": sources}
+                    )
 
         # Trigger a rerun to refresh the input (now enabled)
         st.rerun()

@@ -13,6 +13,7 @@ DROP      TABLE if EXISTS cs431_df;
 
 DROP      TABLE if EXISTS cs431;
 
-SELECT    text
+SELECT    file_name,
+          text
 FROM      cs431
 WHERE     doc_len > 100;
