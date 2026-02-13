@@ -443,7 +443,7 @@ def render_sources(docs: List[schemas.RetrievedDocument]):
 
 def render_chat():
     st.title("RAG Chat")
-    st.caption("Assistant powered by CS431 - PhD. Nguyen Vinh Tiep.")
+    st.caption("Your Reliable Teaching Assistant!")
 
     # Ensure chat state and bind messages to the current chat
     _ensure_default_chat()
@@ -527,13 +527,11 @@ def render_chat():
                 finally:
                     st.session_state.pending_input = None
                     st.session_state.is_generating = False
-            
+
             if resp is not None:
                 answer = resp.responses[0] if resp.responses else "(empty)"
                 sources = (
-                    resp.summarized_docs_list[0]
-                    if resp.summarized_docs_list
-                    else []
+                    resp.summarized_docs_list[0] if resp.summarized_docs_list else []
                 )
                 if target_chat_id in st.session_state.chats:
                     st.session_state.chats[target_chat_id]["messages"].append(
