@@ -3,8 +3,8 @@ import json
 import asyncio
 import time
 from pathlib import Path
-from src.services.public import generate_responses
-from src import schemas
+from app.services.public import generate_responses
+from app import schemas
 
 DATA_DIR = "data/qa"
 POSSIBLE_K = [5, 10]
@@ -33,6 +33,7 @@ def get_full_question(item: dict) -> str:
 
 
 if __name__ == "__main__":
+    exit()
     final_results_path = os.path.join(DATA_DIR, "final_results.txt")
 
     data = load_data(os.path.join(DATA_DIR, "data.json"))

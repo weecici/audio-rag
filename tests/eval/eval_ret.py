@@ -3,8 +3,8 @@ import json
 import math
 import os
 from pathlib import Path
-from src import schemas
-from src.services.public import retrieve_documents
+from app import schemas
+from app.services.public import retrieve_documents
 
 DATA_DIR = "data/ret"
 POSSIBLE_K = [5, 10, 15, 20]
