@@ -16,5 +16,4 @@ data*/**
 .hf/
 .storage/
 
-doc/
-test*.py
+docs/

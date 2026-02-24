@@ -86,12 +86,3 @@ flowchart TD
     classDef output fill:#2d6a4f,stroke:#80ed99,color:#fff;
     classDef storage fill:#6a040f,stroke:#ffba08,color:#fff;
 ```
-
-## To-dos
-
-- [x] Dense Embedding Retrieval (vector)
-- [x] Text search (inverted index based)
-- [x] Hybrid Retrieval (vector)
-- [x] Reranking with Cross-Encoder
-- [x] Sparse Retrieval with Inverted Index (for presentation)
-- [ ] LLM Q&A
