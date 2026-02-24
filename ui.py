@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 from pydantic import ValidationError
-from src import schemas
+from app import schemas
 
 load_dotenv()
 
