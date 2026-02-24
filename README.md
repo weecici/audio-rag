@@ -86,3 +86,8 @@ flowchart TD
     classDef output fill:#2d6a4f,stroke:#80ed99,color:#fff;
     classDef storage fill:#6a040f,stroke:#ffba08,color:#fff;
 ```
+
+## To-do List
+
+- [ ] Use LangChain instead of custom code + LlamaIndex
+- [ ] Use Redis to cache
