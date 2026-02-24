@@ -7,7 +7,7 @@ from app.services.internal import (
     parse_summarization_responses,
 )
 from app.utils import logger
-from ._retrieve import retrieve_documents
+from .retrieve import retrieve_documents
 
 
 async def generate_responses(
