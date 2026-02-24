@@ -2,9 +2,9 @@ from typing import Optional, Literal
 from collections import Counter
 from psycopg import sql
 from pgvector import Vector
-from src import schemas
-from src.core import config
-from src.utils import *
+from app import schemas
+from app.core import config
+from app.utils import *
 from ._storage import (
     get_pg_conn,
     ensure_collection_exists,
@@ -21,7 +21,7 @@ def _rows_to_results(
     results: list[schemas.RetrievedDocument] = []
     for row in rows:
         # row: (id, score, text, document_id, title, file_name, file_path)
-        (rid, score, text, document_id, title, file_name, file_path) = row
+        rid, score, text, document_id, title, file_name, file_path = row
         # Convert distance to similarity if requested
         sim_score = float(score)
         if distance_to_similarity is not None:
@@ -61,8 +61,7 @@ def dense_search(
         f"pgvector.dense_search collection={collection_name} top_k={top_k} using={dense_name} op=<=> (cosine distance)"
     )
 
-    query_tmpl = sql.SQL(
-        """
+    query_tmpl = sql.SQL("""
 		SELECT id,
 			   {dense_col} <=> %s AS score,
 			   text,
@@ -73,8 +72,7 @@ def dense_search(
 		FROM {table}
 		ORDER BY {dense_col} <=> %s
 		LIMIT %s;
-		"""
-    ).format(
+		""").format(
         table=sql.Identifier(collection_name),
         dense_col=sql.Identifier(dense_name),
     )
@@ -142,13 +140,11 @@ def sparse_search(
         df_select = sql.SQL("SELECT doc_freq FROM {} WHERE term = %s;").format(
             sql.Identifier(df_table)
         )
-        doc_select = sql.SQL(
-            """
+        doc_select = sql.SQL("""
             SELECT id, text, document_id, title, file_name, file_path, doc_len
             FROM {}
             WHERE id = %s;
-            """
-        ).format(sql.Identifier(collection_name))
+            """).format(sql.Identifier(collection_name))
 
         # Simple caches to avoid redundant queries within the same request batch
         df_cache: dict[str, int] = {}

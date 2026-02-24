@@ -1,6 +1,6 @@
-import src.services.public as public_svcs
+import app.services.public as public_svcs
 from fastapi import APIRouter
-from src import schemas
+from app import schemas
 
 router = APIRouter()
 

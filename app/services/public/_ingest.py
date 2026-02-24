@@ -1,8 +1,8 @@
 from fastapi import status
-from src import schemas
-from src.utils import logger, download_audio
-from src.repo.postgres import upsert_data
-from src.services.internal import (
+from app import schemas
+from app.utils import logger, download_audio
+from app.repo.postgres import upsert_data
+from app.services.internal import (
     process_documents,
     dense_encode,
     build_inverted_index,

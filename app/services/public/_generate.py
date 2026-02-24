@@ -1,12 +1,12 @@
 from fastapi import status
-from src import schemas
-from src.services.internal import (
+from app import schemas
+from app.services.internal import (
     get_augmented_prompts,
     generate,
     get_summarization_prompts,
     parse_summarization_responses,
 )
-from src.utils import logger
+from app.utils import logger
 from ._retrieve import retrieve_documents
 
 

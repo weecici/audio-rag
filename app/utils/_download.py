@@ -5,7 +5,7 @@ import yt_dlp as ytdlp
 from pathlib import Path
 from typing import Any, Optional, Sequence, Union
 from ._logging import logger
-from src.core import config
+from app.core import config
 
 
 def _ensure_list(urls: Union[str, list[str]]) -> list[str]:

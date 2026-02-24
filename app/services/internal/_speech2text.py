@@ -3,8 +3,8 @@ import os
 from pathlib import Path
 from functools import lru_cache
 from typing import Union
-from src.core import config
-from src.utils import logger
+from app.core import config
+from app.utils import logger
 from faster_whisper import WhisperModel, BatchedInferencePipeline
 
 

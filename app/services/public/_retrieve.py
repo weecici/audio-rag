@@ -1,8 +1,8 @@
 from fastapi import status
-from src import schemas
-from src.utils import logger
-from src.services.internal import dense_encode, rerank
-from src.repo.postgres import (
+from app import schemas
+from app.utils import logger
+from app.services.internal import dense_encode, rerank
+from app.repo.postgres import (
     dense_search,
     sparse_search,
     hybrid_search,

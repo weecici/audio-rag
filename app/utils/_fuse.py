@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Literal, Union
-from src import schemas
-from src.core import config
+from app import schemas
+from app.core import config
 
 FusionMethod = Literal["rrf", "dbsf"]
 

@@ -4,8 +4,8 @@ from google import genai
 from google.genai import types
 from typing import Literal
 from functools import lru_cache
-from src.core import config
-from src.utils import logger
+from app.core import config
+from app.utils import logger
 
 MODEL_ID = "gemini-flash-latest"
 

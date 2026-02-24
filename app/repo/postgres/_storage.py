@@ -5,8 +5,8 @@ from psycopg import sql
 from pgvector import Vector
 from pgvector.psycopg import register_vector
 from llama_index.core.schema import BaseNode
-from src import schemas
-from src.core import config
+from app import schemas
+from app.core import config
 
 POSTINGS_LIST_TABLE_SUFFIX = "pl"
 DOC_FREQ_TABLE_SUFFIX = "df"
@@ -47,8 +47,7 @@ def ensure_collection_exists(
     df_table = f"{collection_name}_{DOC_FREQ_TABLE_SUFFIX}"
     pl_table = f"{collection_name}_{POSTINGS_LIST_TABLE_SUFFIX}"
 
-    create_main_table = sql.SQL(
-        """
+    create_main_table = sql.SQL("""
 		CREATE TABLE IF NOT EXISTS {main_table} (
 			id UUID PRIMARY KEY,
 			text TEXT NOT NULL,
@@ -59,19 +58,16 @@ def ensure_collection_exists(
 			{dense_col} vector({dense_dim}) NOT NULL,
             doc_len INT NOT NULL
 		);
-		"""
-    ).format(
+		""").format(
         main_table=sql.Identifier(collection_name),
         dense_col=sql.Identifier(dense_name),
         dense_dim=sql.Literal(dense_dim),
     )
 
-    create_emb_index = sql.SQL(
-        """
+    create_emb_index = sql.SQL("""
         CREATE INDEX IF NOT EXISTS {index} ON {table}
         USING hnsw ({col} {ops}) WITH (m = {m}, ef_construction = {ef_construction});
-		"""
-    )
+		""")
 
     create_dense_index = create_emb_index.format(
         idx_name=sql.Literal(f"{collection_name}_{dense_name}_idx"),
@@ -83,19 +79,16 @@ def ensure_collection_exists(
         ef_construction=sql.Literal(ef_construction),
     )
 
-    create_doc_freq_table = sql.SQL(
-        """
+    create_doc_freq_table = sql.SQL("""
         CREATE TABLE IF NOT EXISTS {df_table} (
             term TEXT PRIMARY KEY,
             doc_freq INT NOT NULL
         );
-        """
-    ).format(
+        """).format(
         df_table=sql.Identifier(df_table),
     )
 
-    create_postings_list_table = sql.SQL(
-        """
+    create_postings_list_table = sql.SQL("""
         CREATE TABLE IF NOT EXISTS {pl_table} (
             term TEXT,
             doc_id UUID,
@@ -104,18 +97,15 @@ def ensure_collection_exists(
             FOREIGN KEY (term) REFERENCES {df_table}(term) ON DELETE CASCADE,
             FOREIGN KEY (doc_id) REFERENCES {main_table}(id) ON DELETE CASCADE
         );
-        """
-    ).format(
+        """).format(
         pl_table=sql.Identifier(pl_table),
         df_table=sql.Identifier(df_table),
         main_table=sql.Identifier(collection_name),
     )
 
-    create_term_index = sql.SQL(
-        """
+    create_term_index = sql.SQL("""
         CREATE INDEX IF NOT EXISTS {term_index} ON {pl_table} (term);
-        """
-    ).format(
+        """).format(
         term_index=sql.Identifier(
             f"{collection_name}_{POSTINGS_LIST_TABLE_SUFFIX}_term_idx"
         ),
@@ -154,8 +144,7 @@ def upsert_data(
         dense_dim=dense_dim,
     )
 
-    insert_main_table = sql.SQL(
-        """
+    insert_main_table = sql.SQL("""
 		INSERT INTO {table} (id, text, document_id, title, file_name, file_path, {dense_col}, doc_len)
 		VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         --ON CONFLICT (id) DO UPDATE SET
@@ -165,31 +154,26 @@ def upsert_data(
         --	file_name = EXCLUDED.file_name,
         --	file_path = EXCLUDED.file_path,
         --	{dense_col} = EXCLUDED.{dense_col};
-		"""
-    ).format(
+		""").format(
         table=sql.Identifier(collection_name),
         dense_col=sql.Identifier(dense_name),
     )
 
-    insert_df_table = sql.SQL(
-        """
+    insert_df_table = sql.SQL("""
         INSERT INTO {df_table} (term, doc_freq)
         VALUES (%s, %s)
         ON CONFLICT (term) DO UPDATE SET
             doc_freq = EXCLUDED.doc_freq;
-        """
-    ).format(
+        """).format(
         df_table=sql.Identifier(f"{collection_name}_{DOC_FREQ_TABLE_SUFFIX}"),
     )
 
-    insert_pl_table = sql.SQL(
-        """
+    insert_pl_table = sql.SQL("""
         INSERT INTO {pl_table} (term, doc_id, freq)
         VALUES (%s, %s, %s)
         --ON CONFLICT (term, doc_id) DO UPDATE SET
         --  freq = EXCLUDED.freq;
-        """
-    ).format(
+        """).format(
         pl_table=sql.Identifier(f"{collection_name}_{POSTINGS_LIST_TABLE_SUFFIX}"),
     )
 

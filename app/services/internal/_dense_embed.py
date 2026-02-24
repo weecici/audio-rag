@@ -2,8 +2,8 @@ import torch
 from functools import lru_cache
 from typing import Literal
 from sentence_transformers import SentenceTransformer
-from src.core import config
-from src.utils import logger
+from app.core import config
+from app.utils import logger
 
 
 @lru_cache(maxsize=1)

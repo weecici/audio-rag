@@ -1,4 +1,4 @@
-from src import schemas
+from app import schemas
 import re
 
 prompt_template = """

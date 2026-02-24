@@ -1,7 +1,7 @@
 from functools import lru_cache
 from cerebras.cloud.sdk import Cerebras
-from src.core import config
-from src.utils import logger
+from app.core import config
+from app.utils import logger
 
 
 @lru_cache(maxsize=1)
