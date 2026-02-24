@@ -1,5 +1,5 @@
-from ._storage import upsert_data
-from ._retrieve import (
+from .storage import upsert_data
+from .retrieval import (
     dense_search,
     sparse_search,
     hybrid_search,

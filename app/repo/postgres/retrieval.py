@@ -5,7 +5,7 @@ from pgvector import Vector
 from app import schemas
 from app.core import config
 from app.utils import *
-from ._storage import (
+from .storage import (
     get_pg_conn,
     ensure_collection_exists,
     POSTINGS_LIST_TABLE_SUFFIX,
