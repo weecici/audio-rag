@@ -1,6 +1,7 @@
 import app.services.public as public_svcs
-from fastapi import APIRouter
+from fastapi import APIRouter, status
 from app import schemas
+from app.api.middleware import ApiError
 
 router = APIRouter()
 
@@ -12,4 +13,17 @@ router = APIRouter()
     description="Retrieve documents based on the provided queries.",
 )
 async def retrieve(request: schemas.RetrievalRequest) -> schemas.RetrievalResponse:
-    return await public_svcs.retrieve_documents(request)
+    try:
+        return await public_svcs.retrieve_documents(request)
+    except ValueError as exc:
+        raise ApiError(
+            code="invalid_request",
+            message=str(exc),
+            status_code=status.HTTP_400_BAD_REQUEST,
+        ) from exc
+    except Exception as exc:
+        raise ApiError(
+            code="retrieve_failed",
+            message="retrieval failed",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        ) from exc

@@ -1,6 +1,7 @@
 import app.services.public as public_svcs
-from fastapi import APIRouter
+from fastapi import APIRouter, status
 from app import schemas
+from app.api.middleware import ApiError
 
 router = APIRouter()
 
@@ -14,7 +15,20 @@ router = APIRouter()
 async def ingest_documents(
     request: schemas.DocumentIngestionRequest,
 ) -> schemas.IngestionResponse:
-    return await public_svcs.ingest_documents(request)
+    try:
+        return await public_svcs.ingest_documents(request)
+    except ValueError as exc:
+        raise ApiError(
+            code="invalid_request",
+            message=str(exc),
+            status_code=status.HTTP_400_BAD_REQUEST,
+        ) from exc
+    except Exception as exc:
+        raise ApiError(
+            code="ingest_failed",
+            message="document ingestion failed",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        ) from exc
 
 
 @router.post(
@@ -26,4 +40,17 @@ async def ingest_documents(
 async def ingest_audios(
     request: schemas.AudioIngestionRequest,
 ) -> schemas.IngestionResponse:
-    return await public_svcs.ingest_audios(request)
+    try:
+        return await public_svcs.ingest_audios(request)
+    except ValueError as exc:
+        raise ApiError(
+            code="invalid_request",
+            message=str(exc),
+            status_code=status.HTTP_400_BAD_REQUEST,
+        ) from exc
+    except Exception as exc:
+        raise ApiError(
+            code="ingest_failed",
+            message="audio ingestion failed",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        ) from exc
