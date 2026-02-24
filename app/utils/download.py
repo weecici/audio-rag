@@ -4,7 +4,7 @@ import os
 import yt_dlp as ytdlp
 from pathlib import Path
 from typing import Any, Optional, Sequence, Union
-from ._logging import logger
+from .logging import logger
 from app.core import config
 
 
