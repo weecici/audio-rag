@@ -1,4 +1,4 @@
-from app import schemas
+from app import schema
 import re
 
 prompt_template = """
@@ -52,8 +52,8 @@ def get_summarization_prompts(
 
 def parse_summarization_responses(
     responses: list[str],
-    documents_list: list[list[schemas.RetrievedDocument]] = [],
-) -> list[list[schemas.RetrievedDocument]]:
+    documents_list: list[list[schema.RetrievedDocument]] = [],
+) -> list[list[schema.RetrievedDocument]]:
 
     if len(responses) != len(documents_list):
         raise ValueError(

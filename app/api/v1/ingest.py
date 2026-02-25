@@ -1,6 +1,6 @@
 import app.services.public as public_svcs
 from fastapi import APIRouter, status
-from app import schemas
+from app import schema
 from app.api.middleware import ApiError
 
 router = APIRouter()
@@ -8,13 +8,13 @@ router = APIRouter()
 
 @router.post(
     "/ingest/documents",
-    response_model=schemas.IngestionResponse,
+    response_model=schema.IngestionResponse,
     summary="Document ingestion",
     description="Ingest documents from the specified file paths or directory.",
 )
 async def ingest_documents(
-    request: schemas.DocumentIngestionRequest,
-) -> schemas.IngestionResponse:
+    request: schema.DocumentIngestionRequest,
+) -> schema.IngestionResponse:
     try:
         return await public_svcs.ingest_documents(request)
     except ValueError as exc:
@@ -33,13 +33,13 @@ async def ingest_documents(
 
 @router.post(
     "/ingest/audios",
-    response_model=schemas.IngestionResponse,
+    response_model=schema.IngestionResponse,
     summary="Audio ingestion",
     description="Ingest audio files from the specified file paths or youtube links.",
 )
 async def ingest_audios(
-    request: schemas.AudioIngestionRequest,
-) -> schemas.IngestionResponse:
+    request: schema.AudioIngestionRequest,
+) -> schema.IngestionResponse:
     try:
         return await public_svcs.ingest_audios(request)
     except ValueError as exc:

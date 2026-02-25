@@ -2,7 +2,7 @@ from typing import Optional, Literal
 from collections import Counter
 from psycopg import sql
 from pgvector import Vector
-from app import schemas
+from app import schema
 from app.core import config
 from app.utils import *
 from .storage import (
@@ -17,8 +17,8 @@ def _rows_to_results(
     rows: list[tuple],
     *,
     distance_to_similarity: Optional[callable] = None,
-) -> list[schemas.RetrievedDocument]:
-    results: list[schemas.RetrievedDocument] = []
+) -> list[schema.RetrievedDocument]:
+    results: list[schema.RetrievedDocument] = []
     for row in rows:
         # row: (id, score, text, document_id, title, file_name, file_path)
         rid, score, text, document_id, title, file_name, file_path = row
@@ -29,9 +29,9 @@ def _rows_to_results(
                 sim_score = float(distance_to_similarity(sim_score))
             except Exception:
                 sim_score = float(score)
-        payload = schemas.DocumentPayload(
+        payload = schema.DocumentPayload(
             text=text,
-            metadata=schemas.DocumentMetadata(
+            metadata=schema.DocumentMetadata(
                 document_id=document_id or "",
                 title=title or "",
                 file_name=file_name or "",
@@ -39,7 +39,7 @@ def _rows_to_results(
             ),
         )
         results.append(
-            schemas.RetrievedDocument(
+            schema.RetrievedDocument(
                 id=str(rid),
                 score=sim_score,
                 payload=payload,
@@ -53,7 +53,7 @@ def dense_search(
     collection_name: str,
     top_k: int = 5,
     dense_name: str = config.DENSE_MODEL,
-) -> list[list[schemas.RetrievedDocument]]:
+) -> list[list[schema.RetrievedDocument]]:
     conn = get_pg_conn()
     ensure_collection_exists(collection_name=collection_name, dense_name=dense_name)
 
@@ -77,7 +77,7 @@ def dense_search(
         dense_col=sql.Identifier(dense_name),
     )
 
-    all_results: list[list[schemas.RetrievedDocument]] = []
+    all_results: list[list[schema.RetrievedDocument]] = []
     with conn.cursor() as cur:
         for emb in query_embeddings:
             vec = Vector(emb)
@@ -109,11 +109,11 @@ def sparse_search(
     collection_name: str,
     top_k: int = 5,
     scoring_method: Literal["tfidf", "okapi-bm25"] = "okapi-bm25",
-) -> list[list[schemas.RetrievedDocument]]:
+) -> list[list[schema.RetrievedDocument]]:
     conn = get_pg_conn()
     ensure_collection_exists(collection_name=collection_name)
 
-    results_all: list[list[schemas.RetrievedDocument]] = []
+    results_all: list[list[schema.RetrievedDocument]] = []
 
     # Precompute corpus stats once
     with conn.cursor() as cur:
@@ -149,12 +149,12 @@ def sparse_search(
         # Simple caches to avoid redundant queries within the same request batch
         df_cache: dict[str, int] = {}
         # Cache stores (doc_len, payload)
-        doc_cache: dict[str, tuple[int, schemas.DocumentPayload]] = {}
+        doc_cache: dict[str, tuple[int, schema.DocumentPayload]] = {}
 
         for q_idx, tokens in enumerate(tokenized_texts):
             term_counts = Counter(tokens)
             # doc_id -> RetrievedDocument
-            doc_scores: dict[str, schemas.RetrievedDocument] = {}
+            doc_scores: dict[str, schema.RetrievedDocument] = {}
 
             for term, query_tf in term_counts.items():
                 cur.execute(pl_select, (term,))
@@ -196,9 +196,9 @@ def sparse_search(
                             dl,
                         ) = drow
 
-                        payload = schemas.DocumentPayload(
+                        payload = schema.DocumentPayload(
                             text=text,
-                            metadata=schemas.DocumentMetadata(
+                            metadata=schema.DocumentMetadata(
                                 document_id=document_id or "",
                                 title=title or "",
                                 file_name=file_name or "",
@@ -209,7 +209,7 @@ def sparse_search(
                         doc_cache[sid] = (dl, payload)
 
                     if sid not in doc_scores:
-                        doc_scores[sid] = schemas.RetrievedDocument(
+                        doc_scores[sid] = schema.RetrievedDocument(
                             id=sid,
                             score=0.0,
                             payload=payload,
@@ -244,7 +244,7 @@ def hybrid_search(
     alpha: float = config.FUSION_ALPHA,
     fusion_method: Literal["dbsf", "rrf"] = config.FUSION_METHOD,
     dense_name: str = config.DENSE_MODEL,
-) -> list[list[schemas.RetrievedDocument]]:
+) -> list[list[schema.RetrievedDocument]]:
     # Overfetch separately then fuse client-side
     overfetch_amount = max(top_k, int(top_k * overfetch_mul))
 
@@ -260,7 +260,7 @@ def hybrid_search(
         top_k=overfetch_amount,
     )
 
-    fused_results: list[list[schemas.RetrievedDocument]] = []
+    fused_results: list[list[schema.RetrievedDocument]] = []
     for d_res, s_res in zip(dense_results, sparse_results):
         fused = fuse_results(
             results1=d_res, results2=s_res, alpha=alpha, method=fusion_method

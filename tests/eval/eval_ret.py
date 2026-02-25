@@ -3,7 +3,7 @@ import json
 import math
 import os
 from pathlib import Path
-from app import schemas
+from app import schema
 from app.services.public import retrieve_documents
 
 DATA_DIR = "data/ret"
@@ -52,7 +52,7 @@ def calculate_ndcg(scores, k):
 
 if __name__ == "__main__":
 
-    req = schemas.RetrievalRequest(
+    req = schema.RetrievalRequest(
         collection_name="cs431",
         queries=[],
         mode="hybrid",

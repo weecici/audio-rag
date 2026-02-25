@@ -1,6 +1,6 @@
 import app.services.public as public_svcs
 from fastapi import APIRouter, status
-from app import schemas
+from app import schema
 from app.api.middleware import ApiError
 
 router = APIRouter()
@@ -8,11 +8,11 @@ router = APIRouter()
 
 @router.post(
     "/retrieve",
-    response_model=schemas.RetrievalResponse,
+    response_model=schema.RetrievalResponse,
     summary="Retrieve relevant documents",
     description="Retrieve documents based on the provided queries.",
 )
-async def retrieve(request: schemas.RetrievalRequest) -> schemas.RetrievalResponse:
+async def retrieve(request: schema.RetrievalRequest) -> schema.RetrievalResponse:
     try:
         return await public_svcs.retrieve_documents(request)
     except ValueError as exc:

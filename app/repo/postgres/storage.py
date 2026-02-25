@@ -5,7 +5,7 @@ from psycopg import sql
 from pgvector import Vector
 from pgvector.psycopg import register_vector
 from llama_index.core.schema import BaseNode
-from app import schemas
+from app import schema
 from app.core import config
 
 POSTINGS_LIST_TABLE_SUFFIX = "pl"
@@ -123,7 +123,7 @@ def ensure_collection_exists(
 def upsert_data(
     nodes: list[BaseNode],
     dense_embeddings: list[list[float]],
-    postings_list: dict[str, schemas.TermEntry],
+    postings_list: dict[str, schema.TermEntry],
     doc_lens: dict[str, int],
     collection_name: str,
     dense_name: str = config.DENSE_MODEL,
@@ -183,9 +183,9 @@ def upsert_data(
 
     # prepare main table rows
     for i, node in enumerate(nodes):
-        payload = schemas.DocumentPayload(
+        payload = schema.DocumentPayload(
             text=node.text,
-            metadata=schemas.DocumentMetadata.model_validate(node.metadata),
+            metadata=schema.DocumentMetadata.model_validate(node.metadata),
         )
 
         dense_vec = Vector(dense_embeddings[i])

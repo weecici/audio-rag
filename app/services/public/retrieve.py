@@ -1,5 +1,5 @@
 from fastapi import status
-from app import schemas
+from app import schema
 from app.utils import logger
 from app.services.internal import dense_encode, rerank
 from app.repo.postgres import (
@@ -10,8 +10,8 @@ from app.repo.postgres import (
 
 
 async def retrieve_documents(
-    request: schemas.RetrievalRequest,
-) -> schemas.RetrievalResponse:
+    request: schema.RetrievalRequest,
+) -> schema.RetrievalResponse:
     try:
         if not request.queries:
             raise ValueError("No query text provided in event data.")
@@ -76,13 +76,13 @@ async def retrieve_documents(
             f"Retrieved top {request.top_k} similar documents for each of the {len(request.queries)} queries from collection '{request.collection_name}'."
         )
 
-        return schemas.RetrievalResponse(
+        return schema.RetrievalResponse(
             status=status.HTTP_200_OK,
             results=results,
         )
 
     except Exception as e:
         logger.error(f"Error in retrieve_documents: {e}")
-        return schemas.RetrievalResponse(
+        return schema.RetrievalResponse(
             status=status.HTTP_500_INTERNAL_SERVER_ERROR, results=[]
         )

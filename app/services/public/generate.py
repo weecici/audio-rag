@@ -1,5 +1,5 @@
 from fastapi import status
-from app import schemas
+from app import schema
 from app.services.internal import (
     get_augmented_prompts,
     generate,
@@ -11,8 +11,8 @@ from .retrieve import retrieve_documents
 
 
 async def generate_responses(
-    request: schemas.GenerationRequest,
-) -> schemas.GenerationResponse:
+    request: schema.GenerationRequest,
+) -> schema.GenerationResponse:
     try:
         logger.info("Starting response generation process...")
         retrieved_docs = (await retrieve_documents(request)).results
@@ -44,14 +44,14 @@ async def generate_responses(
             )
             docs = parsed_summaries_list
 
-        return schemas.GenerationResponse(
+        return schema.GenerationResponse(
             status=status.HTTP_200_OK,
             responses=qa_responses,
             summarized_docs_list=docs,
         )
     except Exception as e:
         logger.error(f"Error during generation process: {str(e)}")
-        return schemas.GenerationResponse(
+        return schema.GenerationResponse(
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             responses=[],
             summarized_docs_list=[],

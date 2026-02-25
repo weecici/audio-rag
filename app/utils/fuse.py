@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Literal, Union
-from app import schemas
+from app import schema
 from app.core import config
 
 FusionMethod = Literal["rrf", "dbsf"]
@@ -10,13 +10,13 @@ from collections import defaultdict
 
 
 def _fuse_rrf(
-    results1: list[schemas.RetrievedDocument],
-    results2: list[schemas.RetrievedDocument],
+    results1: list[schema.RetrievedDocument],
+    results2: list[schema.RetrievedDocument],
     alpha: float = config.FUSION_ALPHA,
     k: int = config.RRF_K,
-) -> list[schemas.RetrievedDocument]:
+) -> list[schema.RetrievedDocument]:
     fused_scores = defaultdict(float)
-    all_docs: dict[Union[str, int], schemas.RetrievedDocument] = {}
+    all_docs: dict[Union[str, int], schema.RetrievedDocument] = {}
 
     for rank, doc in enumerate(results1):
         fused_scores[doc.id] += alpha * (1 / (k + rank))
@@ -32,7 +32,7 @@ def _fuse_rrf(
         return []
 
     fused_results = [
-        schemas.RetrievedDocument(
+        schema.RetrievedDocument(
             id=doc_id,
             score=score,
             payload=all_docs[doc_id].payload,
@@ -45,15 +45,15 @@ def _fuse_rrf(
 
 
 def _fuse_dbsf(
-    results1: list[schemas.RetrievedDocument],
-    results2: list[schemas.RetrievedDocument],
+    results1: list[schema.RetrievedDocument],
+    results2: list[schema.RetrievedDocument],
     alpha: float = config.FUSION_ALPHA,
-) -> list[schemas.RetrievedDocument]:
+) -> list[schema.RetrievedDocument]:
     fused_scores = defaultdict(float)
-    all_docs: dict[Union[str, int], schemas.RetrievedDocument] = {}
+    all_docs: dict[Union[str, int], schema.RetrievedDocument] = {}
 
     def _normalize_and_fuse(
-        results: list[schemas.RetrievedDocument], coef: float
+        results: list[schema.RetrievedDocument], coef: float
     ) -> None:
         scores = np.array([doc.score for doc in results])
         if scores.size == 0:
@@ -84,7 +84,7 @@ def _fuse_dbsf(
         return []
 
     fused_results = [
-        schemas.RetrievedDocument(
+        schema.RetrievedDocument(
             id=doc_id,
             score=score,
             payload=all_docs[doc_id].payload,
@@ -97,11 +97,11 @@ def _fuse_dbsf(
 
 
 def fuse_results(
-    results1: list[schemas.RetrievedDocument],
-    results2: list[schemas.RetrievedDocument],
+    results1: list[schema.RetrievedDocument],
+    results2: list[schema.RetrievedDocument],
     alpha: float = config.FUSION_ALPHA,  # weight for first result set
     method: FusionMethod = config.FUSION_METHOD,
-) -> list[schemas.RetrievedDocument]:
+) -> list[schema.RetrievedDocument]:
     if method == "rrf":
         return _fuse_rrf(results1, results2, alpha)
     elif method == "dbsf":

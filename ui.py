@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 from pydantic import ValidationError
-from app import schemas
+from app import schema
 
 load_dotenv()
 
@@ -306,9 +306,9 @@ with st.sidebar:
 # -------------------------------
 # Helpers
 # -------------------------------
-def post_generate(query: str) -> Optional[schemas.GenerationResponse]:
+def post_generate(query: str) -> Optional[schema.GenerationResponse]:
     """Call the /generate endpoint with a single user query and return parsed response."""
-    req = schemas.GenerationRequest(
+    req = schema.GenerationRequest(
         queries=[query],
         collection_name=st.session_state.settings["collection_name"],
         top_k=st.session_state.settings["top_k"],
@@ -324,7 +324,7 @@ def post_generate(query: str) -> Optional[schemas.GenerationResponse]:
         r = requests.post(url, json=req.model_dump())
         r.raise_for_status()
         data = r.json()
-        return schemas.GenerationResponse.model_validate(data)
+        return schema.GenerationResponse.model_validate(data)
     except (requests.RequestException, ValidationError) as e:
         st.error(f"API error: {e}")
         try:
@@ -337,8 +337,8 @@ def post_generate(query: str) -> Optional[schemas.GenerationResponse]:
 
 def post_ingest_documents(
     file_paths: List[str], file_dir: str, collection_name: str
-) -> Optional[schemas.IngestionResponse]:
-    req = schemas.DocumentIngestionRequest(
+) -> Optional[schema.IngestionResponse]:
+    req = schema.DocumentIngestionRequest(
         file_paths=file_paths,
         file_dir=file_dir,
         collection_name=collection_name,
@@ -348,7 +348,7 @@ def post_ingest_documents(
         r = requests.post(url, json=req.model_dump())
         r.raise_for_status()
         data = r.json()
-        return schemas.IngestionResponse.model_validate(data)
+        return schema.IngestionResponse.model_validate(data)
     except (requests.RequestException, ValidationError) as e:
         st.error(f"Ingestion error: {e}")
         try:
@@ -360,8 +360,8 @@ def post_ingest_documents(
 
 def post_ingest_audios(
     file_paths: List[str], urls: List[str], collection_name: str
-) -> Optional[schemas.IngestionResponse]:
-    req = schemas.AudioIngestionRequest(
+) -> Optional[schema.IngestionResponse]:
+    req = schema.AudioIngestionRequest(
         file_paths=file_paths,
         urls=urls,
         collection_name=collection_name,
@@ -371,7 +371,7 @@ def post_ingest_audios(
         r = requests.post(url, json=req.model_dump())
         r.raise_for_status()
         data = r.json()
-        return schemas.IngestionResponse.model_validate(data)
+        return schema.IngestionResponse.model_validate(data)
     except (requests.RequestException, ValidationError) as e:
         st.error(f"Audio ingestion error: {e}")
         try:
@@ -381,7 +381,7 @@ def post_ingest_audios(
         return None
 
 
-def render_sources(docs: List[schemas.RetrievedDocument]):
+def render_sources(docs: List[schema.RetrievedDocument]):
     if not docs:
         return
     for idx, d in enumerate(docs, start=1):
@@ -491,7 +491,7 @@ def render_chat():
         if is_current:
             with st.chat_message("assistant"):
                 with st.spinner("Thinking…"):
-                    resp: Optional[schemas.GenerationResponse] = None
+                    resp: Optional[schema.GenerationResponse] = None
                     try:
                         resp = post_generate(pending)
                     finally:
@@ -521,7 +521,7 @@ def render_chat():
         else:
             # Background generation (user switched chat)
             with st.spinner(f"Generating response for another chat..."):
-                resp: Optional[schemas.GenerationResponse] = None
+                resp: Optional[schema.GenerationResponse] = None
                 try:
                     resp = post_generate(pending)
                 finally:

@@ -1,7 +1,7 @@
 import uuid
 import re
 import asyncio
-from app import schemas
+from app import schema
 from pathlib import Path
 from llama_index.core import SimpleDirectoryReader
 from llama_index.core.node_parser import SentenceSplitter
@@ -67,7 +67,7 @@ async def process_documents(file_paths: list[str], file_dir: str) -> list[TextNo
             for title, chunk in chunks:
                 node_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{title}_{audio_url}"))
 
-                metadata = schemas.DocumentMetadata(
+                metadata = schema.DocumentMetadata(
                     document_id=audio_url,
                     title=title,
                     file_name=audio_title,

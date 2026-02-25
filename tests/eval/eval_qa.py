@@ -4,7 +4,7 @@ import asyncio
 import time
 from pathlib import Path
 from app.services.public import generate_responses
-from app import schemas
+from app import schema
 
 DATA_DIR = "data/qa"
 POSSIBLE_K = [5, 10]
@@ -63,7 +63,7 @@ if __name__ == "__main__":
                 max_retries = 3
                 for attempt in range(max_retries):
                     try:
-                        req = schemas.GenerationRequest(
+                        req = schema.GenerationRequest(
                             queries=[question],
                             collection_name="cs431",
                             top_k=k,
