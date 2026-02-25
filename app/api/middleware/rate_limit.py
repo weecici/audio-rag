@@ -1,5 +1,7 @@
 import time
 from fastapi import Request
+from starlette.responses import JSONResponse
+from app.util.logging import request_id_ctx
 from .errors import RateLimitError
 
 
@@ -28,5 +30,16 @@ async def rate_limit_middleware(request: Request, call_next):
     client_ip = request.client.host if request.client else "unknown"
     key = f"{client_ip}:{request.url.path}"
     if not rate_limiter.check(key, now):
-        raise RateLimitError()
+        request_id = request_id_ctx.get() or "unknown"
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": {
+                    "code": "rate_limited",
+                    "message": "Too many requests. Please slow down.",
+                    "request_id": request_id,
+                }
+            },
+            headers={"x-request-id": request_id},
+        )
     return await call_next(request)

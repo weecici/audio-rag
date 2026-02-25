@@ -88,8 +88,11 @@ async def process_documents(file_paths: list[str], file_dir: str) -> list[Docume
         try:
             if chunks == []:
                 raise ValueError("No chunks returned from chunking process")
-            for title, chunk in chunks:
-                node_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{title}_{audio_url}"))
+            for chunk_index, (title, chunk) in enumerate(chunks):
+                # Generate a deterministic UUID based on the file path, title, and the actual text
+                # This ensures that re-ingesting the exact same document chunks doesn't create duplicates
+                unique_str = f"{filepath}_{title}_{chunk_index}_{chunk}"
+                node_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, unique_str))
 
                 metadata = schema.DocumentMetadata(
                     document_id=audio_url,

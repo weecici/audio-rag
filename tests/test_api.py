@@ -40,13 +40,14 @@ def test_retrieve_invalid_request(client: TestClient, monkeypatch: pytest.Monkey
         raise ValueError("bad request")
 
     monkeypatch.setattr(
-        "app.api.v1.retrieve.public_svcs.retrieve_documents",
+        "app.api.v1.retrieve.public_svc.retrieve_documents",
         _raise_value_error,
     )
 
     res = client.post(
         "/api/v1/retrieve",
         json={"queries": ["test"], "collection_name": "docs"},
+        headers={"X-API-Key": "dev-secret-key"},
     )
     assert res.status_code == 400
     payload = res.json()

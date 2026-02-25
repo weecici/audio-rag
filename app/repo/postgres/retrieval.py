@@ -1,4 +1,4 @@
-from typing import Optional, Literal
+from typing import Optional, Literal, Callable
 from collections import Counter
 from psycopg import sql
 from pgvector import Vector
@@ -16,7 +16,7 @@ from .storage import (
 def _rows_to_results(
     rows: list[tuple],
     *,
-    distance_to_similarity: Optional[callable] = None,
+    distance_to_similarity: Optional[Callable] = None,
 ) -> list[schema.RetrievedDocument]:
     results: list[schema.RetrievedDocument] = []
     for row in rows:
@@ -153,60 +153,88 @@ def sparse_search(
 
         for q_idx, tokens in enumerate(tokenized_texts):
             term_counts = Counter(tokens)
-            # doc_id -> RetrievedDocument
             doc_scores: dict[str, schema.RetrievedDocument] = {}
 
+            # 1. Batch fetch doc_freq for all terms
+            terms = list(term_counts.keys())
+            terms_to_fetch = [t for t in terms if t not in df_cache]
+            if terms_to_fetch:
+                # Use a single query for multiple terms
+                cur.execute(
+                    sql.SQL(
+                        "SELECT term, doc_freq FROM {} WHERE term = ANY(%s);"
+                    ).format(sql.Identifier(df_table)),
+                    (terms_to_fetch,),
+                )
+                for term, df in cur.fetchall():
+                    df_cache[term] = int(df) if df is not None else 0
+
+                # Default missing terms to 0
+                for term in terms_to_fetch:
+                    if term not in df_cache:
+                        df_cache[term] = 0
+
+            # 2. Batch fetch postings for all terms
+            term_postings = {}
+            valid_terms = [t for t in terms if df_cache.get(t, 0) > 0]
+            if valid_terms:
+                cur.execute(
+                    sql.SQL(
+                        "SELECT term, doc_id, freq FROM {} WHERE term = ANY(%s);"
+                    ).format(sql.Identifier(pl_table)),
+                    (valid_terms,),
+                )
+                for term, doc_id, freq in cur.fetchall():
+                    if term not in term_postings:
+                        term_postings[term] = []
+                    term_postings[term].append((doc_id, freq))
+
+            # 3. Collect all needed doc_ids to batch fetch documents
+            doc_ids_to_fetch = set()
             for term, query_tf in term_counts.items():
-                cur.execute(pl_select, (term,))
-                postings = cur.fetchall()  # rows of (doc_id, freq)
-                if not postings:
+                if df_cache.get(term, 0) == 0:
                     continue
+                for doc_id, _ in term_postings.get(term, []):
+                    sid = str(doc_id)
+                    if sid not in doc_cache:
+                        doc_ids_to_fetch.add(doc_id)
 
-                # fetch doc_freq (idf needs this)
-                if term in df_cache:
-                    df = df_cache[term]
-                else:
-                    cur.execute(df_select, (term,))
-                    df_row = cur.fetchone()
-                    df = int(df_row[0]) if df_row and df_row[0] is not None else 0
-                    df_cache[term] = df
+            if doc_ids_to_fetch:
+                cur.execute(
+                    sql.SQL("""
+                        SELECT id, text, document_id, title, file_name, file_path, doc_len
+                        FROM {}
+                        WHERE id = ANY(%s);
+                    """).format(sql.Identifier(collection_name)),
+                    (list(doc_ids_to_fetch),),
+                )
+                for drow in cur.fetchall():
+                    doc_id, text, document_id, title, file_name, file_path, dl = drow
+                    payload = schema.DocumentPayload(
+                        text=text,
+                        metadata=schema.DocumentMetadata(
+                            document_id=document_id or "",
+                            title=title or "",
+                            file_name=file_name or "",
+                            file_path=file_path or "",
+                        ),
+                    )
+                    dl = int(dl) if dl is not None else 0
+                    doc_cache[str(doc_id)] = (dl, payload)
 
-                # skip if df == 0 (no documents contain this term)
+            # 4. Calculate scores
+            for term, query_tf in term_counts.items():
+                df = df_cache.get(term, 0)
                 if df == 0:
                     continue
 
-                for doc_id, tf in postings:
+                for doc_id, tf in term_postings.get(term, []):
                     sid = str(doc_id)
 
-                    # fetch payload + doc_len
-                    if sid in doc_cache:
-                        dl, payload = doc_cache[sid]
-                    else:
-                        cur.execute(doc_select, (doc_id,))
-                        drow = cur.fetchone()
-                        if not drow:
-                            continue
-                        (
-                            _,
-                            text,
-                            document_id,
-                            title,
-                            file_name,
-                            file_path,
-                            dl,
-                        ) = drow
+                    if sid not in doc_cache:
+                        continue  # Should not happen unless doc was deleted
 
-                        payload = schema.DocumentPayload(
-                            text=text,
-                            metadata=schema.DocumentMetadata(
-                                document_id=document_id or "",
-                                title=title or "",
-                                file_name=file_name or "",
-                                file_path=file_path or "",
-                            ),
-                        )
-                        dl = int(dl) if dl is not None else 0
-                        doc_cache[sid] = (dl, payload)
+                    dl, payload = doc_cache[sid]
 
                     if sid not in doc_scores:
                         doc_scores[sid] = schema.RetrievedDocument(
@@ -242,7 +270,7 @@ def hybrid_search(
     top_k: int = 5,
     overfetch_mul: float = 2.0,
     alpha: float = config.FUSION_ALPHA,
-    fusion_method: Literal["dbsf", "rrf"] = config.FUSION_METHOD,
+    fusion_method: str = config.FUSION_METHOD,
     dense_name: str = config.DENSE_MODEL,
 ) -> list[list[schema.RetrievedDocument]]:
     # Overfetch separately then fuse client-side
@@ -262,8 +290,15 @@ def hybrid_search(
 
     fused_results: list[list[schema.RetrievedDocument]] = []
     for d_res, s_res in zip(dense_results, sparse_results):
+        # We cast the method to the proper literal here to make the typechecker happy.
+        # It's safely guarded by runtime validation downstream.
+        import typing
+
         fused = fuse_results(
-            results1=d_res, results2=s_res, alpha=alpha, method=fusion_method
+            results1=d_res,
+            results2=s_res,
+            alpha=alpha,
+            method=typing.cast(Literal["dbsf", "rrf"], fusion_method),
         )
         fused_results.append(fused[:overfetch_amount])
 
