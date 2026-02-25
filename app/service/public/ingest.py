@@ -30,7 +30,7 @@ async def ingest_documents(
 
         logger.info(f"Processed {len(nodes)} chunks with UUIDs and metadata.")
 
-        texts = [node.text for node in nodes]
+        texts = [node.page_content for node in nodes]
         titles = [node.metadata.get("title", "none") for node in nodes]
         full_texts = [f"{title}\n\n{text}" for title, text in zip(titles, texts)]
 
@@ -46,9 +46,15 @@ async def ingest_documents(
         )
 
         # Build inverted index (postings list) for the docs
+        doc_ids: list[str] = []
+        for node in nodes:
+            node_id = node.metadata.get("id")
+            if not node_id:
+                raise ValueError("Missing document id in metadata")
+            doc_ids.append(node_id)
+
         postings_list, doc_lens = build_inverted_index(
-            doc_ids=[node.id_ for node in nodes],
-            texts=full_texts,
+            doc_ids=doc_ids, texts=full_texts
         )
 
         logger.info(f"Built inverted index with size: {len(postings_list)}")

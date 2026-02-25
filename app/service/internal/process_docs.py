@@ -1,15 +1,13 @@
 import uuid
 import re
 import asyncio
-from app import schema
 from pathlib import Path
-from llama_index.core import SimpleDirectoryReader
-from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core.schema import TextNode
+
+from langchain_core.documents import Document
+from langchain_community.document_loaders import TextLoader
+
+from app import schema
 from .chunking import chunk_text
-
-splitter = SentenceSplitter(chunk_size=512, chunk_overlap=64)
-
 
 _TIMESTAMP_LINE_RE = re.compile(
     r"^\s*\[(\d+(?:\.\d+)?)s\s*-\s*(\d+(?:\.\d+)?)s\]\s+.+$"
@@ -33,17 +31,41 @@ def _is_transcript_file(filepath: str) -> bool:
     return False
 
 
-async def process_documents(file_paths: list[str], file_dir: str) -> list[TextNode]:
+def _load_documents(file_paths: list[str], file_dir: str) -> list[Document]:
+    docs: list[Document] = []
 
-    reader = SimpleDirectoryReader(input_files=file_paths, input_dir=file_dir)
-    docs = reader.load_data()
+    if file_dir:
+        base_dir = Path(file_dir)
+        if base_dir.exists():
+            for path in base_dir.rglob("*"):
+                if not path.is_file():
+                    continue
+                try:
+                    loader = TextLoader(str(path), encoding="utf-8")
+                    docs.extend(loader.load())
+                except Exception:
+                    continue
 
-    nodes: list[TextNode] = []
+    for fp in file_paths or []:
+        try:
+            loader = TextLoader(fp, encoding="utf-8")
+            docs.extend(loader.load())
+        except Exception:
+            continue
+
+    return docs
+
+
+async def process_documents(file_paths: list[str], file_dir: str) -> list[Document]:
+
+    docs = _load_documents(file_paths=file_paths, file_dir=file_dir)
+
+    nodes: list[Document] = []
     docs_info: list[tuple[str, str, str]] = []  # (audio_url, audio_title, filepath)
     tasks = []
     for doc in docs:
-        filepath = doc.metadata.get("file_path", "unknown")
-        filename = Path(doc.metadata.get("file_name", "unknown")).stem
+        filepath = doc.metadata.get("source", "unknown")
+        filename = Path(filepath).stem
         parts = filename.split("$")
 
         audio_title = parts[0].strip()
@@ -53,7 +75,9 @@ async def process_documents(file_paths: list[str], file_dir: str) -> list[TextNo
 
         text_type = "transcript" if _is_transcript_file(filepath) else "document"
         tasks.append(
-            asyncio.create_task(chunk_text(raw_text=doc.text, text_type=text_type))
+            asyncio.create_task(
+                chunk_text(raw_text=doc.page_content, text_type=text_type)
+            )
         )
 
     all_chunks: list[list[tuple[str, str]]] = await asyncio.gather(*tasks)
@@ -74,7 +98,10 @@ async def process_documents(file_paths: list[str], file_dir: str) -> list[TextNo
                     file_path=filepath,
                 )
 
-                node = TextNode(id_=node_id, text=chunk, metadata=metadata.model_dump())
+                node = Document(
+                    page_content=chunk,
+                    metadata={"id": node_id, **metadata.model_dump()},
+                )
                 nodes.append(node)
         except Exception as e:
             print(f"Error processing chunks for {audio_title}: {e}")

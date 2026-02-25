@@ -4,7 +4,7 @@ from functools import lru_cache
 from psycopg import sql
 from pgvector import Vector
 from pgvector.psycopg import register_vector
-from llama_index.core.schema import BaseNode
+from langchain_core.documents import Document
 from app import schema
 from app.core import config
 
@@ -121,7 +121,7 @@ def ensure_collection_exists(
 
 
 def upsert_data(
-    nodes: list[BaseNode],
+    nodes: list[Document],
     dense_embeddings: list[list[float]],
     postings_list: dict[str, schema.TermEntry],
     doc_lens: dict[str, int],
@@ -184,16 +184,19 @@ def upsert_data(
     # prepare main table rows
     for i, node in enumerate(nodes):
         payload = schema.DocumentPayload(
-            text=node.text,
+            text=node.page_content,
             metadata=schema.DocumentMetadata.model_validate(node.metadata),
         )
 
         dense_vec = Vector(dense_embeddings[i])
-        doc_len = doc_lens.get(node.id_, 0)
+        node_id = node.metadata.get("id")
+        if not node_id:
+            raise ValueError("Missing document id in metadata")
+        doc_len = doc_lens.get(node_id, 0)
 
         main_rows.append(
             (
-                UUID(node.id_),
+                UUID(node_id),
                 payload.text,
                 payload.metadata.document_id,
                 payload.metadata.title,
