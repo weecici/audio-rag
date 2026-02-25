@@ -10,10 +10,13 @@ wheels/
 .venv
 
 
+# Data files
 data*/**
 !data*/.gitkeep
 .env
-.hf/
 .storage/
-
 docs/
+
+# other cache
+.pytest_cache/
+.ruff_cache/
