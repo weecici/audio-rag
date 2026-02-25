@@ -6,7 +6,7 @@ from app.service.internal import (
     get_summarization_prompts,
     parse_summarization_responses,
 )
-from app.utils import logger
+from app.util import logger
 from .retrieve import retrieve_documents
 
 

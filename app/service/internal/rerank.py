@@ -3,7 +3,7 @@ from functools import lru_cache
 from sentence_transformers import CrossEncoder
 from app import schema
 from app.core import config
-from app.utils import logger
+from app.util import logger
 
 
 @lru_cache(maxsize=1)

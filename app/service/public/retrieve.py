@@ -1,6 +1,6 @@
 from fastapi import status
 from app import schema
-from app.utils import logger
+from app.util import logger
 from app.service.internal import dense_encode, rerank
 from app.repo.postgres import (
     dense_search,

@@ -1,6 +1,6 @@
 from collections import Counter
 from app import schema
-from app.utils import tokenize
+from app.util import tokenize
 
 
 def build_inverted_index(

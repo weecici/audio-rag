@@ -5,7 +5,7 @@ from google.genai import types
 from typing import Literal
 from functools import lru_cache
 from app.core import config
-from app.utils import logger
+from app.util import logger
 
 MODEL_ID = "gemini-flash-latest"
 

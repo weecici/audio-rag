@@ -1,6 +1,6 @@
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from app.utils.logging import logger, request_id_ctx
+from app.util.logging import logger, request_id_ctx
 
 
 class ApiError(Exception):

@@ -4,7 +4,7 @@ from psycopg import sql
 from pgvector import Vector
 from app import schema
 from app.core import config
-from app.utils import *
+from app.util import *
 from .storage import (
     get_pg_conn,
     ensure_collection_exists,
