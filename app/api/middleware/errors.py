@@ -1,4 +1,4 @@
-from fastapi import Request
+from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from app.util.logging import logger, request_id_ctx
 
@@ -9,7 +9,7 @@ class ApiError(Exception):
         *,
         code: str,
         message: str,
-        status_code: int = 400,
+        status_code: int = status.HTTP_400_BAD_REQUEST,
         details: dict | None = None,
     ) -> None:
         self.code = code
@@ -20,7 +20,11 @@ class ApiError(Exception):
 
 class RateLimitError(ApiError):
     def __init__(self, message: str = "rate limit exceeded") -> None:
-        super().__init__(code="rate_limited", message=message, status_code=429)
+        super().__init__(
+            code="rate_limited",
+            message=message,
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
 
 
 def _error_response(
@@ -70,5 +74,5 @@ async def unhandled_error_handler(request: Request, exc: Exception):
         request_id=request_id,
         code="internal_error",
         message="internal server error",
-        status_code=500,
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
