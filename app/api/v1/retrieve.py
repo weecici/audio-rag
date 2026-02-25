@@ -1,4 +1,4 @@
-import app.service.public as public_svcs
+import app.service.public as public_svc
 from fastapi import APIRouter, status
 from app import schema
 from app.api.middleware import ApiError
@@ -14,7 +14,7 @@ router = APIRouter()
 )
 async def retrieve(request: schema.RetrievalRequest) -> schema.RetrievalResponse:
     try:
-        return await public_svcs.retrieve_documents(request)
+        return await public_svc.retrieve_documents(request)
     except ValueError as exc:
         raise ApiError(
             code="invalid_request",

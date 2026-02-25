@@ -7,7 +7,7 @@ from langchain_core.documents import Document
 from langchain_community.document_loaders import TextLoader
 
 from app import schema
-from .chunking import chunk_text
+from .chunk import chunk_text
 
 _TIMESTAMP_LINE_RE = re.compile(
     r"^\s*\[(\d+(?:\.\d+)?)s\s*-\s*(\d+(?:\.\d+)?)s\]\s+.+$"

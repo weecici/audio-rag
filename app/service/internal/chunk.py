@@ -7,9 +7,6 @@ from functools import lru_cache
 from app.core import config
 from app.util import logger
 
-MODEL_ID = "gemini-flash-latest"
-
-
 transcript_chunking_template = """
 You are an expert at chunking transcripts of audio files for information retrieval systems. Follow these rules exactly and strictly to produce only the requested output — no explanations or extra text.
 
@@ -166,7 +163,7 @@ async def chunk_text(
         async with sem:
             response = await asyncio.to_thread(
                 client.models.generate_content,
-                model=MODEL_ID,
+                model=config.CHUNKING_MODEL,
                 contents=prompt,
                 config=model_config,
             )

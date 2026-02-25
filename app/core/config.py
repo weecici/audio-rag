@@ -48,3 +48,6 @@ CHUNKED_TRANSCRIPT_STORAGE_PATH = os.path.join(
 
 # speech to text
 SPEECH2TEXT_MODEL = os.getenv("SPEECH2TEXT_MODEL", "small")
+
+# chunking
+CHUNKING_MODEL = os.getenv("CHUNKING_MODEL", "gemini-flash-latest")
