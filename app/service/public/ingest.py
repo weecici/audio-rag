@@ -2,7 +2,7 @@ from fastapi import status
 from app import schema
 from app.utils import logger, download_audio
 from app.repo.postgres import upsert_data
-from app.services.internal import (
+from app.service.internal import (
     process_documents,
     dense_encode,
     build_inverted_index,

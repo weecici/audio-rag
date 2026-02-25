@@ -3,7 +3,7 @@ import json
 import asyncio
 import time
 from pathlib import Path
-from app.services.public import generate_responses
+from app.service.public import generate_responses
 from app import schema
 
 DATA_DIR = "data/qa"

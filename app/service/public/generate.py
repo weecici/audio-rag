@@ -1,6 +1,6 @@
 from fastapi import status
 from app import schema
-from app.services.internal import (
+from app.service.internal import (
     get_augmented_prompts,
     generate,
     get_summarization_prompts,

@@ -1,4 +1,4 @@
-import app.services.public as public_svcs
+import app.service.public as public_svcs
 from fastapi import APIRouter, status
 from app import schema
 from app.api.middleware import ApiError
