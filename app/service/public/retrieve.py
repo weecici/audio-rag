@@ -2,7 +2,7 @@ from fastapi import status
 from app import schema
 from app.util import logger
 from app.service.internal import dense_encode, rerank
-from app.repo.postgres import (
+from app.repo.milvus import (
     dense_search,
     sparse_search,
     hybrid_search,
@@ -19,6 +19,8 @@ async def retrieve_documents(
         logger.info(
             f"Starting document retrieval process for the {len(request.queries)} input queries..."
         )
+
+        dense_query_embeddings: list[list[float]] = []
 
         # Generate dense embeddings for the queries
         if request.mode in ["dense", "hybrid"]:
