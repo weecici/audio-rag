@@ -1,7 +1,4 @@
-from __future__ import annotations
-
 from datetime import datetime, timezone
-
 from app import schema
 from app.core import config
 
@@ -47,13 +44,13 @@ def _hit_to_document(hit: dict) -> schema.Document:
 
 
 def dense_search(
-    query_embeddings: list[list[float]],
+    query_vectors: list[list[float]],
     collection_name: str,
     top_k: int = 5,
 ) -> list[list[schema.Document]]:
     client = get_client()
     if not client.has_collection(collection_name):
-        return [[] for _ in query_embeddings]
+        return [[] for _ in query_vectors]
 
     client.load_collection(collection_name)
     search_params = {
@@ -63,7 +60,7 @@ def dense_search(
 
     raw = client.search(
         collection_name=collection_name,
-        data=query_embeddings,
+        data=query_vectors,
         anns_field="dense_vector",
         limit=top_k,
         output_fields=_OUTPUT_FIELDS,
