@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Any, Optional
 from datetime import datetime, timezone
 
@@ -26,8 +26,7 @@ class Document(BaseModel):
         None, description="Last-updated timestamp (UTC)"
     )
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     @field_validator("title")
     @classmethod
