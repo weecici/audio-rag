@@ -10,8 +10,6 @@ dependencies = [
     "huggingface-hub[cli,hf-transfer]>=0.35.3",
     "langchain-community>=0.3.30",
     "langchain-core>=0.3.78",
-    "psycopg[binary]>=3.2.12",
-    "pgvector>=0.4.1",
     "pydantic>=2.12.3",
     "python-dotenv>=1.1.1",
     "sentence-transformers>=5.1.2",
@@ -28,6 +26,7 @@ dependencies = [
     "rouge>=1.0.1",
     "pytest>=9.0.2",
     "langchain>=1.2.10",
+    "pymilvus>=2.6.9",
 ]
 
 
