@@ -6,7 +6,7 @@ from app import schema
 from app.repo.milvus._client import get_client
 from app.repo.milvus._collection import delete_collection
 from app.repo.milvus.storage import upsert_documents, delete_documents
-from app.repo.milvus.retrieval import dense_search, sparse_search
+from app.repo.milvus.retrieval import dense_search, sparse_search, hybrid_search
 from app.core import config
 
 
@@ -64,7 +64,7 @@ def test_upsert_dense_and_delete_roundtrip(
     upsert_documents(docs, collection_name)
 
     results = dense_search(
-        query_embeddings=[[1.0] * config.DENSE_DIM],
+        query_vectors=[[1.0] * config.DENSE_DIM],
         collection_name=collection_name,
         top_k=5,
     )
@@ -75,7 +75,7 @@ def test_upsert_dense_and_delete_roundtrip(
     assert deleted == 1
 
     results_after = dense_search(
-        query_embeddings=[[1.0] * config.DENSE_DIM],
+        query_vectors=[[1.0] * config.DENSE_DIM],
         collection_name=collection_name,
         top_k=5,
     )
@@ -96,3 +96,19 @@ def test_sparse_bm25_search(collection_name: str, ensure_collection_cleanup):
     assert len(results) == 1
     assert len(results[0]) >= 1
     assert any("vector database" in d.text.lower() for d in results[0])
+
+
+def test_hybrid_search_returns_results(collection_name: str, ensure_collection_cleanup):
+    docs = _docs_for_tests()
+    upsert_documents(docs, collection_name)
+
+    results = hybrid_search(
+        query_vectors=[[1.0] * config.DENSE_DIM],
+        query_texts=["vector database"],
+        collection_name=collection_name,
+        top_k=2,
+    )
+
+    assert len(results) == 1
+    assert 1 <= len(results[0]) <= 2
+    assert {d.doc_id for d in results[0]} <= {1, 2}
