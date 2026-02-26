@@ -46,6 +46,9 @@ MILVUS_HNSW_M = int(os.getenv("MILVUS_HNSW_M", "16"))
 MILVUS_HNSW_EF_CONSTRUCTION = int(os.getenv("MILVUS_HNSW_EF_CONSTRUCTION", "200"))
 MILVUS_HNSW_EF = int(os.getenv("MILVUS_HNSW_EF", "64"))
 
+MILVUS_BM25_K1 = float(os.getenv("MILVUS_BM25_K1", "1.5"))
+MILVUS_BM25_B = float(os.getenv("MILVUS_BM25_B", "0.75"))
+
 MILVUS_INSERT_BATCH_SIZE = int(os.getenv("MILVUS_INSERT_BATCH_SIZE", "512"))
 MILVUS_ENABLE_FULLTEXT = os.getenv("MILVUS_ENABLE_FULLTEXT", "false").lower() in (
     "1",
