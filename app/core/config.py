@@ -31,12 +31,30 @@ if not RRF_K > 0:
     raise ValueError("RRF_K must be a positive integer.")
 FUSION_ALPHA = float(os.getenv("FUSION_ALPHA", 0.7))
 
-# postgres
-POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
-POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5432"))
-POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "pg")
-POSTGRES_DB = os.getenv("POSTGRES_DB", "cs419_db")
+
+# milvus
+MILVUS_URI = os.getenv("MILVUS_URI", "http://localhost:19530")
+MILVUS_DB_NAME = os.getenv("MILVUS_DB_NAME", "default")
+MILVUS_USER = os.getenv("MILVUS_USER", "")
+MILVUS_PASSWORD = os.getenv("MILVUS_PASSWORD", "")
+MILVUS_TOKEN = os.getenv("MILVUS_TOKEN", "")
+MILVUS_TIMEOUT_SEC = float(os.getenv("MILVUS_TIMEOUT_SEC", "30"))
+
+MILVUS_METRIC_TYPE = os.getenv("MILVUS_METRIC_TYPE", "COSINE")
+MILVUS_INDEX_TYPE = os.getenv("MILVUS_INDEX_TYPE", "HNSW")
+MILVUS_HNSW_M = int(os.getenv("MILVUS_HNSW_M", "16"))
+MILVUS_HNSW_EF_CONSTRUCTION = int(os.getenv("MILVUS_HNSW_EF_CONSTRUCTION", "200"))
+MILVUS_HNSW_EF = int(os.getenv("MILVUS_HNSW_EF", "64"))
+
+MILVUS_INSERT_BATCH_SIZE = int(os.getenv("MILVUS_INSERT_BATCH_SIZE", "512"))
+MILVUS_ENABLE_FULLTEXT = os.getenv("MILVUS_ENABLE_FULLTEXT", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+    "y",
+    "on",
+)
+MILVUS_TEXT_MAX_LENGTH = int(os.getenv("MILVUS_TEXT_MAX_LENGTH", "9000"))
 
 # local storage
 LOCAL_STORAGE_PATH = os.getenv("LOCAL_STORAGE_PATH", "./.storage")
