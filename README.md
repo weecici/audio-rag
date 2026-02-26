@@ -91,3 +91,5 @@ flowchart TD
 
 - [ ] Use LangChain instead of custom code + LlamaIndex
 - [ ] Use Redis to cache
+- [ ] Better separation of concerns (API -> Public Service -> Internal Service -> Repo)
+- [ ] Replace local LLM with API-based LLM for text embeddings
