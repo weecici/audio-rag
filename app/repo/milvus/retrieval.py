@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
+from pymilvus import AnnSearchRequest, RRFRanker, WeightedRanker
+
 from app import schema
 from app.core import config
-
 from ._client import get_client
 
 
@@ -34,11 +35,16 @@ def _hit_to_document(hit: dict) -> schema.Document:
     entity.setdefault("updated_at", None)
     entity.setdefault("sparse_vector", None)
 
-    # TIMESTAMPTZ comes back as an ISO string.
-    if isinstance(entity.get("created_at"), str):
-        entity["created_at"] = datetime.fromisoformat(entity["created_at"])
-    if isinstance(entity.get("updated_at"), str):
-        entity["updated_at"] = datetime.fromisoformat(entity["updated_at"])
+    def _parse_timestamptz(v: object) -> object:
+        if not isinstance(v, str):
+            return v
+        # Milvus often returns RFC3339 with trailing 'Z'.
+        if v.endswith("Z"):
+            v = v[:-1] + "+00:00"
+        return datetime.fromisoformat(v)
+
+    entity["created_at"] = _parse_timestamptz(entity.get("created_at"))
+    entity["updated_at"] = _parse_timestamptz(entity.get("updated_at"))
 
     return schema.Document(**entity)
 
@@ -50,7 +56,7 @@ def dense_search(
 ) -> list[list[schema.Document]]:
     client = get_client()
     if not client.has_collection(collection_name):
-        return [[] for _ in query_vectors]
+        return [[] for _ in range(len(query_vectors))]
 
     client.load_collection(collection_name)
     search_params = {
@@ -77,7 +83,7 @@ def sparse_search(
 ) -> list[list[schema.Document]]:
     client = get_client()
     if not client.has_collection(collection_name):
-        return [[] for _ in query_texts]
+        return [[] for _ in range(len(query_texts))]
 
     client.load_collection(collection_name)
     search_params = {"metric_type": "BM25", "params": {}}
@@ -94,5 +100,54 @@ def sparse_search(
     return [[_hit_to_document(h) for h in hits] for hits in raw]
 
 
-def hybrid_search(*args, **kwargs):  # pragma: no cover
-    raise NotImplementedError("Hybrid retrieval not implemented yet")
+def hybrid_search(
+    query_vectors: list[list[float]],
+    query_texts: list[str],
+    collection_name: str,
+    top_k: int = 5,
+) -> list[list[schema.Document]]:
+    client = get_client()
+    if not client.has_collection(collection_name):
+        return [[] for _ in range(len(query_vectors))]
+
+    client.load_collection(collection_name)
+
+    if len(query_vectors) != len(query_texts):
+        raise ValueError("query_vectors and query_texts must have same length")
+
+    req_dense = AnnSearchRequest(
+        data=query_vectors,
+        anns_field="dense_vector",
+        param={
+            "metric_type": "COSINE",
+            "params": {"ef": config.MILVUS_HNSW_EF},
+        },
+        limit=top_k,
+    )
+    req_sparse = AnnSearchRequest(
+        data=query_texts,
+        anns_field="sparse_vector",
+        param={"metric_type": "BM25", "params": {}},
+        limit=top_k,
+    )
+
+    # Keep config backwards-compatible: default FUSION_METHOD is 'dbsf'.
+    fusion = config.FUSION_METHOD
+    if fusion in ("weighted", "dbsf"):
+        ranker = WeightedRanker(
+            config.FUSION_ALPHA, 1 - config.FUSION_ALPHA, norm_score=True
+        )
+    elif fusion == "rrf":
+        ranker = RRFRanker(k=max(1, int(config.RRF_K)))
+    else:
+        raise ValueError(f"Unsupported fusion method: {fusion}")
+
+    raw = client.hybrid_search(
+        collection_name=collection_name,
+        reqs=[req_dense, req_sparse],
+        limit=top_k,
+        output_fields=_OUTPUT_FIELDS,
+        ranker=ranker,
+    )
+
+    return [[_hit_to_document(h) for h in hits] for hits in raw]

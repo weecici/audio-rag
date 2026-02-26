@@ -25,7 +25,7 @@ RERANKING_MODEL_PATH = os.getenv("RERANKING_MODEL_PATH", "BAAI/bge-reranker-v2-m
 
 # utils
 WORD_PROCESS_METHOD = os.getenv("WORD_PROCESS_METHOD", "stem")
-FUSION_METHOD = os.getenv("FUSION_METHOD", "dbsf")
+FUSION_METHOD = os.getenv("FUSION_METHOD", "weighted")
 RRF_K = int(os.getenv("RRF_K", 2))
 if not RRF_K > 0:
     raise ValueError("RRF_K must be a positive integer.")
