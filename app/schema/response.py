@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from .doc import RetrievedDocument
+from .doc import Document
 
 
 class IngestionResponse(BaseModel):
@@ -9,7 +9,7 @@ class IngestionResponse(BaseModel):
 
 class RetrievalResponse(BaseModel):
     status: int = Field(..., description="HTTP status code of the retrieval process")
-    results: list[list[RetrievedDocument]] = Field(
+    results: list[list[Document]] = Field(
         ..., description="List of retrieved documents with their metadata"
     )
 
@@ -19,7 +19,7 @@ class GenerationResponse(BaseModel):
     responses: list[str] = Field(
         ..., description="List of generated responses corresponding to the queries"
     )
-    summarized_docs_list: list[list[RetrievedDocument]] = Field(
+    summarized_docs_list: list[list[Document]] = Field(
         ...,
         description="List of summarizations from retrieved documents with their metadata",
     )

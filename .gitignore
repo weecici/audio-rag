@@ -20,3 +20,6 @@ docs/
 # other cache
 .pytest_cache/
 .ruff_cache/
+
+# milvus
+.milvus/

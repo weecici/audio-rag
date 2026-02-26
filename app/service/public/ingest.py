@@ -1,7 +1,7 @@
 from fastapi import status
 from app import schema
 from app.util import logger, download_audio
-from app.repo.postgres import upsert_data
+from app.repo.milvus import upsert_data
 from app.service.internal import (
     process_documents,
     dense_encode,
