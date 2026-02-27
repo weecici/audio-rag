@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from pymilvus import AnnSearchRequest, RRFRanker, WeightedRanker
 
 from app import models
-from app.core import config
+from app.core.config import settings
 from ._client import get_client
 
 
@@ -61,7 +61,7 @@ def dense_search(
     client.load_collection(collection_name)
     search_params = {
         "metric_type": "COSINE",
-        "params": {"ef": config.MILVUS_HNSW_EF},
+        "params": {"ef": settings.MILVUS_HNSW_EF},
     }
 
     raw = client.search(
@@ -120,7 +120,7 @@ def hybrid_search(
         anns_field="dense_vector",
         param={
             "metric_type": "COSINE",
-            "params": {"ef": config.MILVUS_HNSW_EF},
+            "params": {"ef": settings.MILVUS_HNSW_EF},
         },
         limit=top_k,
     )
@@ -132,13 +132,13 @@ def hybrid_search(
     )
 
     # Keep config backwards-compatible: default FUSION_METHOD is 'dbsf'.
-    fusion = config.FUSION_METHOD
+    fusion = settings.FUSION_METHOD
     if fusion in ("weighted", "dbsf"):
         ranker = WeightedRanker(
-            config.FUSION_ALPHA, 1 - config.FUSION_ALPHA, norm_score=True
+            settings.FUSION_ALPHA, 1 - settings.FUSION_ALPHA, norm_score=True
         )
     elif fusion == "rrf":
-        ranker = RRFRanker(k=max(1, int(config.RRF_K)))
+        ranker = RRFRanker(k=max(1, int(settings.RRF_K)))
     else:
         raise ValueError(f"Unsupported fusion method: {fusion}")
 

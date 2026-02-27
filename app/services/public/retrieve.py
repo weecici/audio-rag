@@ -1,7 +1,7 @@
 from fastapi import status
 
 from app import schemas
-from app.utils import logger
+from app.core.logging import logger
 from app.services.internal import dense_encode, rerank
 from app.repositories.milvus import (
     dense_search,

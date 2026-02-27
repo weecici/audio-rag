@@ -2,14 +2,14 @@ import torch
 from functools import lru_cache
 from sentence_transformers import CrossEncoder
 from app import schemas
-from app.core import config
-from app.utils import logger
+from app.core.config import settings
+from app.core.logging import logger
 
 
 @lru_cache(maxsize=1)
 def _get_reranking_model() -> CrossEncoder:
-    logger.info(f"Loading reranking model: {config.RERANKING_MODEL}")
-    model = CrossEncoder(model_name_or_path=config.RERANKING_MODEL_PATH, device="cpu")
+    logger.info(f"Loading reranking model: {settings.RERANKING_MODEL}")
+    model = CrossEncoder(model_name_or_path=settings.RERANKING_MODEL_PATH, device="cpu")
     return model
 
 

@@ -1,15 +1,15 @@
 from functools import lru_cache
 from cerebras.cloud.sdk import Cerebras
-from app.core import config
-from app.utils import logger
+from app.core.config import settings
+from app.core.logging import logger
 
 
 @lru_cache(maxsize=1)
 def _get_client() -> Cerebras:
-    if not config.CEREBRAS_API_KEY:
+    if not settings.CEREBRAS_API_KEY:
         raise RuntimeError("CEREBRAS_API_KEY not set")
     logger.info("Initializing Cerebras LLM client")
-    client = Cerebras(api_key=config.CEREBRAS_API_KEY)
+    client = Cerebras(api_key=settings.CEREBRAS_API_KEY)
     return client
 
 

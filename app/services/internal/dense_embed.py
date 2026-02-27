@@ -2,15 +2,15 @@ import torch
 from functools import lru_cache
 from typing import Literal
 from sentence_transformers import SentenceTransformer
-from app.core import config
-from app.utils import logger
+from app.core.config import settings
+from app.core.logging import logger
 
 
 @lru_cache(maxsize=1)
 def _get_embedding_model() -> SentenceTransformer:
-    logger.info(f"Loading dense embedding model: {config.DENSE_MODEL}")
+    logger.info(f"Loading dense embedding model: {settings.DENSE_MODEL}")
     model = SentenceTransformer(
-        model_name_or_path=config.DENSE_MODEL_PATH, device="cpu"
+        model_name_or_path=settings.DENSE_MODEL_PATH, device="cpu"
     )
     return model
 
@@ -19,7 +19,7 @@ def dense_encode(
     text_type: Literal["document", "query"],
     texts: list[str],
     titles: list[str] = [],
-    dim: int = config.DENSE_DIM,
+    dim: int = settings.DENSE_DIM,
     batch_size: int = 8,
 ) -> list[list[float]]:
 

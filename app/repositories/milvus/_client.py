@@ -1,25 +1,25 @@
 from functools import lru_cache
 from pymilvus import MilvusClient
 
-from app.core import config
+from app.core.config import settings
 
 
 def _build_client_kwargs() -> dict:
     kwargs: dict = {
-        "uri": config.MILVUS_URI,
-        "db_name": config.MILVUS_DB_NAME,
-        "timeout": config.MILVUS_TIMEOUT_SEC,
+        "uri": settings.MILVUS_URI,
+        "db_name": settings.MILVUS_DB_NAME,
+        "timeout": settings.MILVUS_TIMEOUT_SEC,
     }
 
     # Prefer token auth when provided.
-    if config.MILVUS_TOKEN:
-        kwargs["token"] = config.MILVUS_TOKEN
+    if settings.MILVUS_TOKEN:
+        kwargs["token"] = settings.MILVUS_TOKEN
         return kwargs
 
     # Fallback to user/password if provided.
-    if config.MILVUS_USER or config.MILVUS_PASSWORD:
-        kwargs["user"] = config.MILVUS_USER
-        kwargs["password"] = config.MILVUS_PASSWORD
+    if settings.MILVUS_USER or settings.MILVUS_PASSWORD:
+        kwargs["user"] = settings.MILVUS_USER
+        kwargs["password"] = settings.MILVUS_PASSWORD
 
     return kwargs
 

@@ -5,8 +5,8 @@ from google import genai
 from google.genai import types
 from typing import Literal
 from functools import lru_cache
-from app.core import config
-from app.utils import logger
+from app.core.config import settings
+from app.core.logging import logger
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 transcript_chunking_template = """
@@ -65,10 +65,10 @@ Now process the document below using these rules:
 
 @lru_cache(maxsize=1)
 def _get_client() -> genai.Client:
-    if not config.GOOGLE_API_KEY:
+    if not settings.GOOGLE_API_KEY:
         raise RuntimeError("GOOGLE_API_KEY not set")
     logger.info("Initializing Google Gemini client")
-    client = genai.Client(api_key=config.GOOGLE_API_KEY)
+    client = genai.Client(api_key=settings.GOOGLE_API_KEY)
     return client
 
 
@@ -192,8 +192,8 @@ async def chunk_text(
     raw_text: str,
     text_type: Literal["transcript", "document"] = "transcript",
     save_outputs: bool = True,
-    output_dir: str = config.CHUNKED_TRANSCRIPT_STORAGE_PATH,
-    max_tokens: int = config.MAX_TOKENS,
+    output_dir: str = settings.CHUNKED_TRANSCRIPT_STORAGE_PATH,
+    max_tokens: int = settings.MAX_TOKENS,
 ) -> list[tuple[str, str]]:
     """Return a list of tuples: (title, chunk_text)"""
 
@@ -220,7 +220,7 @@ async def chunk_text(
         async with sem:
             response = await asyncio.to_thread(
                 client.models.generate_content,
-                model=config.CHUNKING_MODEL,
+                model=settings.CHUNKING_MODEL,
                 contents=prompt,
                 config=model_config,
             )

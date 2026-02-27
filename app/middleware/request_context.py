@@ -7,7 +7,7 @@ import uuid
 
 from fastapi import Request
 
-from app.utils.logging import logger, request_id_ctx
+from app.core.logging import logger, request_id_ctx
 
 
 async def request_context_middleware(request: Request, call_next):

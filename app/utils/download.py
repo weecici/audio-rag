@@ -4,8 +4,8 @@ import os
 import yt_dlp as ytdlp
 from pathlib import Path
 from typing import Any, Optional, Sequence, Union
-from .logging import logger
-from app.core import config
+from app.core.logging import logger
+from app.core.config import settings
 
 
 def _ensure_list(urls: Union[str, list[str]]) -> list[str]:
@@ -16,7 +16,7 @@ def _ensure_list(urls: Union[str, list[str]]) -> list[str]:
 
 def download_audio(
     urls: Union[str, list[str]],
-    out_dir: Union[str, Path] = config.AUDIO_STORAGE_PATH,
+    out_dir: Union[str, Path] = settings.AUDIO_STORAGE_PATH,
     filename_template: str = "%(title)s $ %(id)s.%(ext)s",
     codec: str = "wav",
     sample_rate: Optional[int] = 16000,

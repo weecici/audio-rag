@@ -3,7 +3,7 @@
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 
-from app.utils.logging import logger, request_id_ctx
+from app.core.logging import logger, request_id_ctx
 
 
 class ApiError(Exception):

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from app import models
-from app.utils import logger
+from app.core.logging import logger
 
 from ._client import get_client
 from ._collection import create_collection

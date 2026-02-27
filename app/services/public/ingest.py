@@ -1,7 +1,8 @@
 from fastapi import status
 
 from app import schemas
-from app.utils import logger, download_audio
+from app.core.logging import logger
+from app.utils import download_audio
 from app.repositories.milvus import upsert_data
 from app.services.internal import (
     process_documents,

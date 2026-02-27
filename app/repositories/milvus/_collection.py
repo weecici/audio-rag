@@ -1,7 +1,7 @@
 from pymilvus import MilvusClient, DataType, Function, FunctionType, CollectionSchema
 
-from app.core import config
-from app.utils import logger
+from app.core.config import settings
+from app.core.logging import logger
 from ._client import get_client
 
 
@@ -14,8 +14,8 @@ def _create_index_params(client: MilvusClient):
         index_type="HNSW",
         metric_type="COSINE",
         params={
-            "M": config.MILVUS_HNSW_M,
-            "efConstruction": config.MILVUS_HNSW_EF_CONSTRUCTION,
+            "M": settings.MILVUS_HNSW_M,
+            "efConstruction": settings.MILVUS_HNSW_EF_CONSTRUCTION,
         },
     )
 
@@ -26,8 +26,8 @@ def _create_index_params(client: MilvusClient):
         metric_type="BM25",
         params={
             "inverted_index_algo": "DAAT_MAXSCORE",
-            "bm25_k1": config.MILVUS_BM25_K1,
-            "bm25_b": config.MILVUS_BM25_B,
+            "bm25_k1": settings.MILVUS_BM25_K1,
+            "bm25_b": settings.MILVUS_BM25_B,
         },
     )
 
@@ -65,7 +65,9 @@ def _create_schema(client: MilvusClient) -> CollectionSchema:
         enable_analyzer=True,
     )
     schema.add_field(
-        field_name="dense_vector", datatype=DataType.FLOAT_VECTOR, dim=config.DENSE_DIM
+        field_name="dense_vector",
+        datatype=DataType.FLOAT_VECTOR,
+        dim=settings.DENSE_DIM,
     )
     schema.add_field(field_name="sparse_vector", datatype=DataType.SPARSE_FLOAT_VECTOR)
     schema.add_field(field_name="created_at", datatype=DataType.TIMESTAMPTZ)

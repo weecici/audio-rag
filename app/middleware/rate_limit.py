@@ -7,7 +7,7 @@ import time
 from fastapi import Request, status
 from starlette.responses import JSONResponse
 
-from app.utils.logging import request_id_ctx
+from app.core.logging import request_id_ctx
 
 
 class RateLimiter:
