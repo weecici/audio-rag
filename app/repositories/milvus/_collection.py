@@ -1,7 +1,7 @@
 from pymilvus import MilvusClient, DataType, Function, FunctionType, CollectionSchema
 
 from app.core import config
-from app.util import logger
+from app.utils import logger
 from ._client import get_client
 
 

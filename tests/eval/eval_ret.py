@@ -3,8 +3,8 @@ import json
 import math
 import os
 from pathlib import Path
-from app import schema
-from app.service.public import retrieve_documents
+from app import schemas
+from app.services.public import retrieve_documents
 
 DATA_DIR = "data/ret"
 POSSIBLE_K = [5, 10, 15, 20]
@@ -52,7 +52,7 @@ def calculate_ndcg(scores, k):
 
 if __name__ == "__main__":
 
-    req = schema.RetrievalRequest(
+    req = schemas.RetrievalRequest(
         collection_name="cs431",
         queries=[],
         mode="hybrid",

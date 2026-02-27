@@ -11,7 +11,7 @@ from rouge import Rouge
 from nltk.translate.meteor_score import meteor_score
 import nltk
 from app.core import config
-from app.service.internal import get_summarization_prompts, generate
+from app.services.internal import get_summarization_prompts, generate
 
 DATA_DIR = "data/sum"
 DATA_PATH = os.path.join(DATA_DIR, "raw.json")

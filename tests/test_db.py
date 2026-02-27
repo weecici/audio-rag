@@ -1,12 +1,11 @@
+import pytest
 from datetime import datetime, timezone
 
-import pytest
-
-from app import schema
-from app.repo.milvus._client import get_client
-from app.repo.milvus._collection import delete_collection
-from app.repo.milvus.storage import upsert_documents, delete_documents
-from app.repo.milvus.retrieval import dense_search, sparse_search, hybrid_search
+from app import schemas
+from app.repositories.milvus._client import get_client
+from app.repositories.milvus._collection import delete_collection
+from app.repositories.milvus.storage import upsert_documents, delete_documents
+from app.repositories.milvus.retrieval import dense_search, sparse_search, hybrid_search
 from app.core import config
 
 
@@ -21,11 +20,11 @@ def ensure_collection_cleanup(collection_name: str):
     delete_collection(collection_name)
 
 
-def _docs_for_tests() -> list[schema.Document]:
+def _docs_for_tests() -> list[schemas.Document]:
     now = datetime.now(timezone.utc)
     dim = config.DENSE_DIM
     return [
-        schema.Document(
+        schemas.Document(
             doc_id=1,
             title="Milvus intro",
             author_info="a",
@@ -37,7 +36,7 @@ def _docs_for_tests() -> list[schema.Document]:
             created_at=now,
             updated_at=None,
         ),
-        schema.Document(
+        schemas.Document(
             doc_id=2,
             title="PyMilvus client",
             author_info="b",

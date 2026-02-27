@@ -1,7 +1,7 @@
 import time
 from fastapi import Request, status
 from starlette.responses import JSONResponse
-from app.util.logging import request_id_ctx
+from app.utils.logging import request_id_ctx
 from .errors import RateLimitError
 
 

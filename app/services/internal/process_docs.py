@@ -6,7 +6,7 @@ from pathlib import Path
 from langchain_core.documents import Document
 from langchain_community.document_loaders import TextLoader
 
-from app import schema
+from app import schemas
 from .chunk import chunk_text
 
 _TIMESTAMP_LINE_RE = re.compile(
@@ -94,7 +94,7 @@ async def process_documents(file_paths: list[str], file_dir: str) -> list[Docume
                 unique_str = f"{filepath}_{title}_{chunk_index}_{chunk}"
                 node_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, unique_str))
 
-                metadata = schema.DocumentMetadata(
+                metadata = schemas.DocumentMetadata(
                     document_id=audio_url,
                     title=title,
                     file_name=audio_title,

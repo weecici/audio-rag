@@ -1,8 +1,8 @@
 from fastapi import status
-from app import schema
-from app.util import logger, download_audio
-from app.repo.milvus import upsert_data
-from app.service.internal import (
+from app import schemas
+from app.utils import logger, download_audio
+from app.repositories.milvus import upsert_data
+from app.services.internal import (
     process_documents,
     dense_encode,
     build_inverted_index,
@@ -11,8 +11,8 @@ from app.service.internal import (
 
 
 async def ingest_documents(
-    request: schema.DocumentIngestionRequest,
-) -> schema.IngestionResponse:
+    request: schemas.DocumentIngestionRequest,
+) -> schemas.IngestionResponse:
     try:
         if not request.file_paths and not request.file_dir:
             raise ValueError("No file paths or directory provided in event data.")
@@ -72,7 +72,7 @@ async def ingest_documents(
             f"Completed ingestion process of {len(nodes)} documents for collection '{request.collection_name}'."
         )
 
-        return schema.IngestionResponse(
+        return schemas.IngestionResponse(
             status=status.HTTP_201_CREATED,
             message=f"Successfully ingested {len(nodes)} nodes into collection '{request.collection_name}'.",
         )
@@ -80,14 +80,14 @@ async def ingest_documents(
     except Exception as e:
         logger.error(f"Error while ingesting documents: {e}")
 
-        return schema.IngestionResponse(
+        return schemas.IngestionResponse(
             status=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e)
         )
 
 
 async def ingest_audios(
-    request: schema.AudioIngestionRequest,
-) -> schema.IngestionResponse:
+    request: schemas.AudioIngestionRequest,
+) -> schemas.IngestionResponse:
     try:
         if not request.file_paths and not request.urls:
             raise ValueError("No audio file paths or URLs provided in request data.")
@@ -103,7 +103,7 @@ async def ingest_audios(
         if len(transcript_paths) == 0:
             raise ValueError("No transcripts were generated from the provided audios.")
 
-        doc_ingest_request = schema.DocumentIngestionRequest(
+        doc_ingest_request = schemas.DocumentIngestionRequest(
             collection_name=request.collection_name, file_paths=transcript_paths
         )
 
@@ -114,13 +114,13 @@ async def ingest_audios(
                 f"Document ingestion failed during audio ingestion: {transcript_ingest_response.message}"
             )
 
-        return schema.IngestionResponse(
+        return schemas.IngestionResponse(
             status=status.HTTP_200_OK,
             message=f"Ingested {len(total_filepaths)} audio files into collection '{request.collection_name}'.",
         )
     except Exception as e:
         logger.error(f"Error while ingesting audios: {e}")
 
-        return schema.IngestionResponse(
+        return schemas.IngestionResponse(
             status=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e)
         )

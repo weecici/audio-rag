@@ -4,7 +4,7 @@ from pathlib import Path
 from functools import lru_cache
 from typing import Union
 from app.core import config
-from app.util import logger
+from app.utils import logger
 from faster_whisper import WhisperModel, BatchedInferencePipeline
 
 

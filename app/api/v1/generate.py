@@ -1,6 +1,6 @@
-import app.service.public as public_svc
+import app.services.public as public_svc
 from fastapi import APIRouter, status
-from app import schema
+from app import schemas
 from app.api.middleware import ApiError
 
 router = APIRouter()
@@ -8,11 +8,11 @@ router = APIRouter()
 
 @router.post(
     "/generate",
-    response_model=schema.GenerationResponse,
+    response_model=schemas.GenerationResponse,
     summary="Generate responses from documents",
     description="Generate responses based on the provided queries and retrieved documents.",
 )
-async def generate(request: schema.GenerationRequest) -> schema.GenerationResponse:
+async def generate(request: schemas.GenerationRequest) -> schemas.GenerationResponse:
     try:
         return await public_svc.generate_responses(request)
     except ValueError as exc:

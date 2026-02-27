@@ -6,7 +6,7 @@ from google.genai import types
 from typing import Literal
 from functools import lru_cache
 from app.core import config
-from app.util import logger
+from app.utils import logger
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 transcript_chunking_template = """

@@ -1,9 +1,9 @@
 import torch
 from functools import lru_cache
 from sentence_transformers import CrossEncoder
-from app import schema
+from app import schemas
 from app.core import config
-from app.util import logger
+from app.utils import logger
 
 
 @lru_cache(maxsize=1)
@@ -15,9 +15,9 @@ def _get_reranking_model() -> CrossEncoder:
 
 def rerank(
     queries: list[str],
-    candidates: list[list[schema.RetrievedDocument]],
+    candidates: list[list[schemas.RetrievedDocument]],
     batch_size: int = 8,
-) -> list[list[schema.RetrievedDocument]]:
+) -> list[list[schemas.RetrievedDocument]]:
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = _get_reranking_model()
@@ -39,7 +39,7 @@ def rerank(
     )
     scores: list[float] = scores.cpu().tolist()
 
-    reranked_results: list[list[schema.RetrievedDocument]] = []
+    reranked_results: list[list[schemas.RetrievedDocument]] = []
     score_idx = 0
     for i, _ in enumerate(queries):
         num_candidates = len(candidates[i])
