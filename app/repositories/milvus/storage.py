@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from app import schemas
+from app import models
 from app.utils import logger
 
 from ._client import get_client
@@ -20,7 +20,7 @@ _OUTPUT_FIELDS = [
 ]
 
 
-def _doc_to_entity(doc: schemas.Document) -> dict:
+def _doc_to_entity(doc: models.Document) -> dict:
     payload = doc.model_dump()
 
     # TIMESTAMPTZ fields are passed as strings by PyMilvus.
@@ -33,7 +33,7 @@ def _doc_to_entity(doc: schemas.Document) -> dict:
     return payload
 
 
-def upsert_documents(docs: list[schemas.Document], collection_name: str) -> None:
+def upsert_documents(docs: list[models.Document], collection_name: str) -> None:
     client = get_client()
     create_collection(collection_name)
 

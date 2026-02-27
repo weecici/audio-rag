@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from pymilvus import AnnSearchRequest, RRFRanker, WeightedRanker
 
-from app import schemas
+from app import models
 from app.core import config
 from ._client import get_client
 
@@ -18,7 +18,7 @@ _OUTPUT_FIELDS = [
 ]
 
 
-def _hit_to_document(hit: dict) -> schemas.Document:
+def _hit_to_document(hit: dict) -> models.Document:
     entity = dict(hit.get("entity") or {})
     # PyMilvus returns primary key in `hit['id']` and also sometimes as `hit['doc_id']`.
     doc_id = hit.get("id")
@@ -46,14 +46,14 @@ def _hit_to_document(hit: dict) -> schemas.Document:
     entity["created_at"] = _parse_timestamptz(entity.get("created_at"))
     entity["updated_at"] = _parse_timestamptz(entity.get("updated_at"))
 
-    return schemas.Document(**entity)
+    return models.Document(**entity)
 
 
 def dense_search(
     query_vectors: list[list[float]],
     collection_name: str,
     top_k: int = 5,
-) -> list[list[schemas.Document]]:
+) -> list[list[models.Document]]:
     client = get_client()
     if not client.has_collection(collection_name):
         return [[] for _ in range(len(query_vectors))]
@@ -80,7 +80,7 @@ def sparse_search(
     query_texts: list[str],
     collection_name: str,
     top_k: int = 5,
-) -> list[list[schemas.Document]]:
+) -> list[list[models.Document]]:
     client = get_client()
     if not client.has_collection(collection_name):
         return [[] for _ in range(len(query_texts))]
@@ -105,7 +105,7 @@ def hybrid_search(
     query_texts: list[str],
     collection_name: str,
     top_k: int = 5,
-) -> list[list[schemas.Document]]:
+) -> list[list[models.Document]]:
     client = get_client()
     if not client.has_collection(collection_name):
         return [[] for _ in range(len(query_vectors))]

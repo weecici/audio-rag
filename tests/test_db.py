@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime, timezone
 
-from app import schemas
+from app import models
 from app.repositories.milvus._client import get_client
 from app.repositories.milvus._collection import delete_collection
 from app.repositories.milvus.storage import upsert_documents, delete_documents
@@ -20,11 +20,11 @@ def ensure_collection_cleanup(collection_name: str):
     delete_collection(collection_name)
 
 
-def _docs_for_tests() -> list[schemas.Document]:
+def _docs_for_tests() -> list[models.Document]:
     now = datetime.now(timezone.utc)
     dim = config.DENSE_DIM
     return [
-        schemas.Document(
+        models.Document(
             doc_id=1,
             title="Milvus intro",
             author_info="a",
@@ -36,7 +36,7 @@ def _docs_for_tests() -> list[schemas.Document]:
             created_at=now,
             updated_at=None,
         ),
-        schemas.Document(
+        models.Document(
             doc_id=2,
             title="PyMilvus client",
             author_info="b",
@@ -91,7 +91,7 @@ def test_sparse_bm25_search(collection_name: str, ensure_collection_cleanup):
         collection_name=collection_name,
         top_k=3,
     )
-    print(results)
+
     assert len(results) == 1
     assert len(results[0]) >= 1
     assert any("vector database" in d.text.lower() for d in results[0])
