@@ -27,6 +27,8 @@ dependencies = [
     "pytest>=9.0.2",
     "langchain>=1.2.10",
     "pymilvus>=2.6.9",
+    "python-multipart>=0.0.22",
+    "redis>=7.2.1",
 ]
 
 
