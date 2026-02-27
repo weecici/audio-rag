@@ -11,8 +11,7 @@ router = APIRouter(prefix="/files", tags=["Ingestion"])
     status_code=status.HTTP_202_ACCEPTED,
     summary="Ingest text documents",
     description=(
-        "Accept document file paths or a directory for background ingestion "
-        "into the vector store."
+        "Accept document files for background ingestion into the vector store."
     ),
 )
 async def ingest_text_files(
@@ -31,7 +30,7 @@ async def ingest_text_files(
     status_code=status.HTTP_202_ACCEPTED,
     summary="Ingest audio sources",
     description=(
-        "Accept audio file paths or YouTube URLs for background transcription "
+        "Accept audio files or YouTube URLs for background transcription "
         "and ingestion into the vector store."
     ),
 )
