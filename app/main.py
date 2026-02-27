@@ -1,20 +1,39 @@
-from app.core import app
-from app.api.v1 import api_v1
-from app.api.middleware import (
+"""FastAPI application factory and wiring."""
+
+from fastapi import FastAPI
+
+from app.api import router
+from app.middleware import (
+    ApiError,
     api_error_handler,
+    auth_middleware,
     rate_limit_middleware,
     request_context_middleware,
-    auth_middleware,
     unhandled_error_handler,
-    ApiError,
 )
 
-# Middleware is executed in reverse order of adding
-app.middleware("http")(auth_middleware)
-app.middleware("http")(rate_limit_middleware)
-app.middleware("http")(request_context_middleware)
 
-app.add_exception_handler(ApiError, api_error_handler)
-app.add_exception_handler(Exception, unhandled_error_handler)
+def create_app() -> FastAPI:
+    application = FastAPI(
+        title="Audio RAG Service",
+        version="1.0.0",
+        description="Retrieval-Augmented Generation API for audio and document sources.",
+    )
 
-app.include_router(router=api_v1, prefix="/api/v1")
+    # Middleware executes in reverse registration order.
+    # request_context first (outermost), then rate-limit, then auth (innermost).
+    application.middleware("http")(auth_middleware)
+    application.middleware("http")(rate_limit_middleware)
+    application.middleware("http")(request_context_middleware)
+
+    # Exception handlers
+    application.add_exception_handler(ApiError, api_error_handler)  # type: ignore[arg-type]
+    application.add_exception_handler(Exception, unhandled_error_handler)  # type: ignore[arg-type]
+
+    # Routers
+    application.include_router(router)
+
+    return application
+
+
+app = create_app()

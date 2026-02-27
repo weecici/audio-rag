@@ -1,11 +1,9 @@
 from fastapi import APIRouter
-from .ingest import router as ingest_router
-from .retrieve import router as retrieve_router
-from .generate import router as generate_router
-from .health import router as health_router
 
-api_v1 = APIRouter()
-api_v1.include_router(ingest_router)
-api_v1.include_router(retrieve_router)
-api_v1.include_router(generate_router)
-api_v1.include_router(health_router)
+from .endpoints import conversations, health, ingestion, search
+
+router = APIRouter(prefix="/v1")
+router.include_router(health.router)
+router.include_router(ingestion.router)
+router.include_router(search.router)
+router.include_router(conversations.router)

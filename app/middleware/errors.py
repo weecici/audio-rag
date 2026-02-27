@@ -1,9 +1,14 @@
+"""Structured error types and FastAPI exception handlers."""
+
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
+
 from app.utils.logging import logger, request_id_ctx
 
 
 class ApiError(Exception):
+    """Base error raised by endpoint / service code to produce a JSON error body."""
+
     def __init__(
         self,
         *,
@@ -19,6 +24,8 @@ class ApiError(Exception):
 
 
 class RateLimitError(ApiError):
+    """Convenience subclass returned by the rate-limit middleware."""
+
     def __init__(self, message: str = "rate limit exceeded") -> None:
         super().__init__(
             code="rate_limited",
@@ -27,7 +34,10 @@ class RateLimitError(ApiError):
         )
 
 
-def _error_response(
+# ── helpers ──────────────────────────────────────────────────────────
+
+
+def _build_error_response(
     *,
     request_id: str,
     code: str,
@@ -35,20 +45,23 @@ def _error_response(
     status_code: int,
     details: dict | None = None,
 ) -> JSONResponse:
-    payload = {
-        "error": {
-            "code": code,
-            "message": message,
-            "details": details or {},
-            "request_id": request_id,
-        }
-    }
-    return JSONResponse(status_code=status_code, content=payload)
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "error": {
+                "code": code,
+                "message": message,
+                "details": details or {},
+                "request_id": request_id,
+            }
+        },
+    )
 
 
-async def api_error_handler(request: Request, exc: Exception):
-    if not isinstance(exc, ApiError):
-        return await unhandled_error_handler(request, exc)
+# ── handlers ─────────────────────────────────────────────────────────
+
+
+async def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
     request_id = request_id_ctx.get()
     logger.warning(
         "api error",
@@ -58,7 +71,7 @@ async def api_error_handler(request: Request, exc: Exception):
             "status_code": exc.status_code,
         },
     )
-    return _error_response(
+    return _build_error_response(
         request_id=request_id,
         code=exc.code,
         message=exc.message,
@@ -67,10 +80,10 @@ async def api_error_handler(request: Request, exc: Exception):
     )
 
 
-async def unhandled_error_handler(request: Request, exc: Exception):
+async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
     request_id = request_id_ctx.get()
     logger.exception("unhandled exception", extra={"request_id": request_id})
-    return _error_response(
+    return _build_error_response(
         request_id=request_id,
         code="internal_error",
         message="internal server error",
