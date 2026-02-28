@@ -16,6 +16,7 @@ data*/**
 .env
 .storage/
 docs/
+tmp*
 
 # other cache
 .pytest_cache/

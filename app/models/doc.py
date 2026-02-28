@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 class Document(BaseModel):
     doc_id: int = Field(..., description="The Document ID")
-    title: str = Field(..., description="The title of the document")
+    title: Optional[str] = Field(None, description="The title of the document")
     author_info: Optional[str] = Field(None, description="The author of the document")
     tags: Optional[list[str]] = Field(None, description="Free-form tags / categories")
     metadata: Optional[dict[str, Any]] = Field(
@@ -27,13 +27,6 @@ class Document(BaseModel):
     )
 
     model_config = ConfigDict(extra="forbid")
-
-    @field_validator("title")
-    @classmethod
-    def title_must_not_be_empty(cls, v: str) -> str:
-        if not v or not v.strip():
-            raise ValueError("title must not be empty")
-        return v.strip()
 
     @field_validator("tags")
     @classmethod

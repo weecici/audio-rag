@@ -1,6 +1,6 @@
 import random
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,24 +15,23 @@ class Settings(BaseSettings):
     )
 
     # llm provider api keys
-    CEREBRAS_API_KEY: str | None = None
-    GOOGLE_API_KEY: str | None = None
+    CEREBRAS_API_KEY: Optional[str] = None
+    GOOGLE_API_KEY: Optional[str] = None
 
     # chunking config
     MAX_TOKENS: int = 1024
     OVERLAP_TOKENS: int = 200
 
-    # dense model
-    DENSE_MODEL: str = "embeddinggemma-300m"
-    DENSE_MODEL_PATH: str = "google/embeddinggemma-300m"
-    DENSE_DIM: int = 768
+    # title generation (Cerebras)
+    TITLE_MODEL: str = "gpt-oss-120b"
+    TITLE_MAX_TOKENS: int = 50
 
-    # reranking model
-    RERANKING_MODEL: str = "bge-reranker-v2-m3"
-    RERANKING_MODEL_PATH: str = "BAAI/bge-reranker-v2-m3"
+    # embedding
+    EMBEDDING_MODEL: str = "models/gemini-embedding-001"
+    EMBEDDING_BATCH_SIZE: int = 64
+    EMBEDDING_DIM: int = 768  # must match the actual dimension of the embedding model
 
     # utils
-    WORD_PROCESS_METHOD: str = "stem"
     FUSION_METHOD: Literal["weighted", "dbsf", "rrf"] = "weighted"
     RRF_K: int = 2
     FUSION_ALPHA: float = 0.7
@@ -61,14 +60,22 @@ class Settings(BaseSettings):
     MILVUS_ENABLE_FULLTEXT: bool = False
     MILVUS_TEXT_MAX_LENGTH: int = 9000
 
+    # redis
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_PASSWORD: str = "dev-redis-password"
+    REDIS_DB: int = 0
+    REDIS_JOB_TTL_SEC: int = 86400  # 24 hours
+
     # local storage
     LOCAL_STORAGE_PATH: str = "./.storage"
 
-    # speech to text
-    SPEECH2TEXT_MODEL: str = "small"
-
-    # chunking
-    CHUNKING_MODEL: str = "gemini-flash-latest"
+    @field_validator("FUSION_ALPHA")
+    @classmethod
+    def fusion_alpha_must_be_between_0_and_1(cls, v: float) -> float:
+        if not (0.0 <= v <= 1.0):
+            raise ValueError("FUSION_ALPHA must be between 0 and 1.")
+        return v
 
     @field_validator("RRF_K")
     @classmethod

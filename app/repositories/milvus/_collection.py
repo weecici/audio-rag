@@ -67,7 +67,7 @@ def _create_schema(client: MilvusClient) -> CollectionSchema:
     schema.add_field(
         field_name="dense_vector",
         datatype=DataType.FLOAT_VECTOR,
-        dim=settings.DENSE_DIM,
+        dim=settings.EMBEDDING_DIM,
     )
     schema.add_field(field_name="sparse_vector", datatype=DataType.SPARSE_FLOAT_VECTOR)
     schema.add_field(field_name="created_at", datatype=DataType.TIMESTAMPTZ)

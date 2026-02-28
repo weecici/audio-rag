@@ -6,7 +6,7 @@ router = APIRouter(prefix="/search", tags=["Search"])
 
 
 @router.post(
-    "/",
+    "",
     response_model=dict,
     summary="Search for relevant documents",
     description=(

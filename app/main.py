@@ -22,9 +22,9 @@ def create_app() -> FastAPI:
 
     # Middleware executes in reverse registration order.
     # request_context first (outermost), then rate-limit, then auth (innermost).
-    application.middleware("http")(auth_middleware)
-    application.middleware("http")(rate_limit_middleware)
-    application.middleware("http")(request_context_middleware)
+    # application.middleware("http")(auth_middleware)
+    # application.middleware("http")(rate_limit_middleware)
+    # application.middleware("http")(request_context_middleware)
 
     # Exception handlers
     application.add_exception_handler(ApiError, api_error_handler)  # type: ignore[arg-type]
