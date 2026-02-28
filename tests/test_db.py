@@ -6,7 +6,7 @@ from app.repositories.milvus._client import get_client
 from app.repositories.milvus._collection import delete_collection
 from app.repositories.milvus.storage import upsert_documents, delete_documents
 from app.repositories.milvus.retrieval import dense_search, sparse_search, hybrid_search
-from app.core import config
+from app.core.config import settings
 
 
 @pytest.fixture()
@@ -22,7 +22,7 @@ def ensure_collection_cleanup(collection_name: str):
 
 def _docs_for_tests() -> list[models.Document]:
     now = datetime.now(timezone.utc)
-    dim = config.DENSE_DIM
+    dim = settings.EMBEDDING_DIM
     return [
         models.Document(
             doc_id=1,
@@ -63,7 +63,7 @@ def test_upsert_dense_and_delete_roundtrip(
     upsert_documents(docs, collection_name)
 
     results = dense_search(
-        query_vectors=[[1.0] * config.DENSE_DIM],
+        query_vectors=[[1.0] * settings.EMBEDDING_DIM],
         collection_name=collection_name,
         top_k=5,
     )
@@ -74,7 +74,7 @@ def test_upsert_dense_and_delete_roundtrip(
     assert deleted == 1
 
     results_after = dense_search(
-        query_vectors=[[1.0] * config.DENSE_DIM],
+        query_vectors=[[1.0] * settings.EMBEDDING_DIM],
         collection_name=collection_name,
         top_k=5,
     )
@@ -102,7 +102,7 @@ def test_hybrid_search_returns_results(collection_name: str, ensure_collection_c
     upsert_documents(docs, collection_name)
 
     results = hybrid_search(
-        query_vectors=[[1.0] * config.DENSE_DIM],
+        query_vectors=[[1.0] * settings.EMBEDDING_DIM],
         query_texts=["vector database"],
         collection_name=collection_name,
         top_k=2,
