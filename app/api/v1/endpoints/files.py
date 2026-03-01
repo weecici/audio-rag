@@ -2,8 +2,8 @@
 
 import asyncio
 import uuid
+import mimetypes
 from pathlib import Path
-
 from fastapi import APIRouter, status, File, UploadFile, BackgroundTasks
 
 from app.middleware.errors import ApiError
@@ -15,10 +15,12 @@ from app.repositories.redis import create_job
 
 router = APIRouter(prefix="/files", tags=["Files"])
 
+ALLOWED_EXTS = settings.ALLOWED_TEXT_EXTS + settings.ALLOWED_AUDIO_EXTS
+
 
 async def _run_ingest(
     job_id: str,
-    file_paths: list[str],
+    file_paths: list[Path],
     filenames: list[str],
     collection_name: str,
 ) -> None:
@@ -49,30 +51,35 @@ async def upload_and_ingest(
     base_dir = Path(settings.LOCAL_STORAGE_PATH) / "uploads"
     base_dir.mkdir(parents=True, exist_ok=True)
 
-    allowed_prefixes = ("text/", "audio/")
-
-    saved_paths: list[str] = []
+    saved_paths: list[Path] = []
     filenames: list[str] = []
     results: list[FileResult] = []
 
     for upload in files:
         content_type = (upload.content_type or "").lower()
-        if content_type and not content_type.startswith(allowed_prefixes):
+        ext = mimetypes.guess_extension(content_type)
+        if ext not in ALLOWED_EXTS:
             raise ApiError(
                 code="unsupported_media_type",
-                message="Only text/* and audio/* uploads are supported by this endpoint.",
+                message="Only specific file types are supported by this endpoint.",
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 details={
                     "content_type": upload.content_type,
                     "filename": upload.filename,
+                    "allowed_types": ALLOWED_EXTS,
                 },
             )
+
+        file_status = "accepted"
+        # [TODO] Additional validation can be added here, check actual file type
+        # if rejected then set status = "rejected"
 
         saved_path, _size = await save_upload(upload, base_dir)
         fname = upload.filename or "unknown"
         saved_paths.append(saved_path)
         filenames.append(fname)
-        results.append(FileResult(filename=fname, status="accepted", reason=None))
+
+        results.append(FileResult(filename=fname, status=file_status, reason=None))
 
     # Create job in Redis and schedule background processing
     job_id = str(uuid.uuid4())

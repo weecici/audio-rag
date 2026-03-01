@@ -1,81 +1,140 @@
+"""Speech-to-text transcription using faster-whisper BatchedInferencePipeline."""
+
+import threading
 import torch
-import os
-from pathlib import Path
 from functools import lru_cache
-from typing import Union
+from pathlib import Path
 from faster_whisper import WhisperModel, BatchedInferencePipeline
 
 from app.core.config import settings
 from app.core.logging import logger
 
+# Serialise GPU access – only one transcription batch at a time.
+_gpu_lock = threading.Lock()
+
 
 @lru_cache(maxsize=1)
-def _get_s2t_batched_model() -> BatchedInferencePipeline:
-    logger.info(
-        f"Loading speech to text model: faster-whisper-{settings.SPEECH_TO_TEXT_MODEL_SIZE}"
-    )
+def _get_batched_model() -> BatchedInferencePipeline:
+    """Return a cached ``BatchedInferencePipeline`` singleton.
+
+    The model is created on the best available device (CUDA > CPU).
+    CTranslate2's ``load_model`` / ``unload_model`` are used later to
+    manage VRAM between transcription batches.
+    """
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = WhisperModel(
-        settings.SPEECH_TO_TEXT_MODEL_SIZE, device=device, compute_type="float16"
+    compute_type = "float16" if device == "cuda" else "float32"
+
+    logger.info(
+        f"Loading speech-to-text model: "
+        f"faster-whisper-{settings.SPEECH_TO_TEXT_MODEL_SIZE} "
+        f"(device={device}, compute_type={compute_type})"
     )
-    batched_model = BatchedInferencePipeline(model=model)
-    return batched_model
+    model = WhisperModel(
+        settings.SPEECH_TO_TEXT_MODEL_SIZE,
+        device=device,
+        compute_type=compute_type,
+    )
+    return BatchedInferencePipeline(model=model)
 
 
-def _ensure_list(paths: Union[str, list[str]]) -> list[str]:
-    if isinstance(paths, str):
-        return [paths]
-    return paths
-
-
-def transcribe_audio(
-    audio_paths: Union[str, list[str]],
-    out_dir: str = settings.TRANSCRIPT_STORAGE_PATH,
-    language: str = "vi",
+def _transcribe_single(
+    batched_model: BatchedInferencePipeline,
+    audio_path: Path,
+    *,
+    language: str | None = None,
     batch_size: int = 4,
-) -> list[str]:
+) -> str:
+    """Transcribe one audio file and return timestamped transcript text."""
+    segments, info = batched_model.transcribe(
+        str(audio_path),
+        language=language,
+        batch_size=batch_size,
+    )
 
-    audio_paths = _ensure_list(audio_paths)
+    # lines: list[str] = []
+    # for seg in segments:
+    #     lines.append(f"[{seg.start:.2f}s - {seg.end:.2f}s] {seg.text.strip()}")
+    transcript = " ".join(seg.text.strip() for seg in segments)
+
+    logger.info(
+        f"Transcribed {audio_path.name}: "
+        f"lang={info.language} ({info.language_probability:.0%}), "
+        f"{len(transcript)} chars"
+    )
+    return transcript
+
+
+def parse_audio_to_text(
+    audio_paths: list[Path],
+    out_dir: Path | None = None,
+    *,
+    language: str | None = None,
+    batch_size: int = 4,
+) -> list[Path]:
+    """Transcribe audio files and return paths to transcript ``.txt`` files.
+
+    This function is designed to be called from ``asyncio.run_in_executor``
+    so the event loop is not blocked.
+
+    Lifecycle per call:
+      1. Acquire ``_gpu_lock``.
+      2. Ensure CTranslate2 weights are on device (``load_model``).
+      3. Transcribe each file via ``BatchedInferencePipeline``.
+      4. Unload weights from CUDA and release VRAM.
+
+    Args:
+        audio_paths: Paths to audio files (.mp3, .wav, .ogg, .flac, .aac).
+        out_dir: Directory for transcript files.  Defaults to
+            ``settings.TRANSCRIPT_STORAGE_PATH``.
+        language: ISO-639-1 language code hint (e.g. ``"vi"``).
+            ``None`` lets Whisper auto-detect.
+        batch_size: Number of audio segments decoded in parallel by
+            the batched pipeline.
+
+    Returns:
+        List of transcript ``.txt`` file paths (same order as input,
+        minus failures).
+    """
     if not audio_paths:
-        logger.warning("No valid audio files provided to transcribe_audio")
         return []
 
-    batched_model = _get_s2t_batched_model()
-    batched_model.model.model.load_model()
+    if out_dir is None:
+        out_dir = Path(settings.TRANSCRIPT_STORAGE_PATH)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    os.makedirs(out_dir, exist_ok=True)
+    batched_model = _get_batched_model()
+    ct2_model = batched_model.model.model  # ctranslate2.models.Whisper
 
-    transcripts = []
-    filepaths = []
-    for audio_path in audio_paths:
+    transcript_paths: list[Path] = []
+
+    with _gpu_lock:
+        # Ensure weights are on-device (no-op if already loaded).
+        ct2_model.load_model()
+
         try:
-            logger.info(f"Transcribing audio file: {audio_path}")
+            for audio_path in audio_paths:
+                try:
+                    logger.info(f"Transcribing: {audio_path.name}")
+                    transcript = _transcribe_single(
+                        batched_model,
+                        audio_path,
+                        language=language,
+                        batch_size=batch_size,
+                    )
 
-            segments, info = batched_model.transcribe(
-                audio_path, language=language, batch_size=batch_size
-            )
+                    transcript_path = out_dir / f"{audio_path.stem}.txt"
+                    transcript_path.write_text(transcript, encoding="utf-8")
+                    transcript_paths.append(transcript_path)
 
-            transcript = ""
-            for segment in segments:
-                s, e, t = segment.start, segment.end, segment.text.strip()
-                transcript += f"[{s:.2f}s - {e:.2f}s] {t}\n"
+                    logger.info(f"Transcript saved: {transcript_path}")
+                except Exception as exc:
+                    logger.error(f"Failed to transcribe {audio_path.name}: {exc}")
+                    continue
+        finally:
+            # Free VRAM after the batch is done.
+            if ct2_model.device == "cuda":
+                ct2_model.unload_model()
+                torch.cuda.empty_cache()
+                logger.debug("Whisper model unloaded from CUDA, VRAM freed.")
 
-            # Write out the transcript
-            audio_filename = Path(audio_path).stem
-            transcript_path = os.path.join(out_dir, f"{audio_filename}.txt")
-            with open(transcript_path, "w", encoding="utf-8") as f:
-                f.write(transcript)
-
-            filepaths.append(transcript_path)
-
-            logger.info(f"Completed saving transcription for: {audio_path}")
-        except Exception as e:
-            logger.error(f"Error transcribing {audio_path}: {e}")
-            transcripts.append("")
-            continue
-
-    if batched_model.model.model.device == "cuda":
-        batched_model.model.model.unload_model()
-        torch.cuda.empty_cache()
-
-    return filepaths
+    return transcript_paths

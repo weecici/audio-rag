@@ -22,9 +22,13 @@ class Settings(BaseSettings):
     MAX_TOKENS: int = 1024
     OVERLAP_TOKENS: int = 200
 
+    ALLOWED_TEXT_EXTS: tuple[str, ...] = (".pdf", ".txt", ".docx", ".doc", ".md")
+    ALLOWED_AUDIO_EXTS: tuple[str, ...] = (".mp3", ".wav", ".ogg", ".flac", ".aac")
+
     # title generation
+    TITLE_GEN_ENABLED: bool = False
     TITLE_GEN_MODEL: str = "gpt-oss-120b"
-    TITLE_MAX_TOKENS: int = 50
+    TITLE_MAX_TOKENS: int = 30
 
     # Speech to text
     SPEECH_TO_TEXT_MODEL_SIZE: str = "medium"
@@ -68,7 +72,7 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str = "dev-redis-password"
     REDIS_DB: int = 0
-    REDIS_JOB_TTL_SEC: int = 86400  # 24 hours
+    REDIS_JOB_TTL_SEC: int = 3600  # 1 hours
 
     # local storage
     LOCAL_STORAGE_PATH: str = "./.storage"
@@ -89,16 +93,16 @@ class Settings(BaseSettings):
 
     # Derived storage paths (computed, not read from env)
     @property
-    def AUDIO_STORAGE_PATH(self) -> str:
-        return str(Path(self.LOCAL_STORAGE_PATH) / "audios")
+    def AUDIO_STORAGE_PATH(self) -> Path:
+        return Path(self.LOCAL_STORAGE_PATH) / "audio_files"
 
     @property
-    def TRANSCRIPT_STORAGE_PATH(self) -> str:
-        return str(Path(self.LOCAL_STORAGE_PATH) / "transcripts")
+    def TRANSCRIPT_STORAGE_PATH(self) -> Path:
+        return Path(self.LOCAL_STORAGE_PATH) / "transcripts"
 
     @property
-    def CHUNKED_TRANSCRIPT_STORAGE_PATH(self) -> str:
-        return str(Path(self.LOCAL_STORAGE_PATH) / "chunked_transcripts")
+    def CHUNK_STORAGE_PATH(self) -> Path:
+        return Path(self.LOCAL_STORAGE_PATH) / "chunks"
 
 
 settings = Settings()

@@ -1,16 +1,13 @@
 """Schemas for job status polling."""
 
-from __future__ import annotations
-
 from typing import Any, Literal, Optional
-
 from pydantic import BaseModel, Field
 
 
 class FileJobStatus(BaseModel):
     """Processing status of a single file within a job."""
 
-    status: Literal["pending", "processing", "completed", "failed"]
+    status: Literal["pending", "transcribing", "processing", "completed", "failed"]
     error: str = ""
     chunks: int = Field(0, description="Number of document chunks produced")
 

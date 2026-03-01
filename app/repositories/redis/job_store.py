@@ -12,12 +12,10 @@ Job structure (Redis hash at key ``job:{job_id}``):
     documents_ingested – total document chunks written to vector store
 
 Per-file status stored at ``job:{job_id}:files:{filename}``:
-    status  – pending | processing | completed | failed
+    status  – pending | transcribing | processing | completed | failed
     error   – error message (empty when ok)
     chunks  – number of chunks produced from this file
 """
-
-from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
@@ -29,7 +27,7 @@ from ._client import get_redis_client
 
 
 JobStatus = Literal["queued", "processing", "completed", "failed"]
-FileStatus = Literal["pending", "processing", "completed", "failed"]
+FileStatus = Literal["pending", "transcribing", "processing", "completed", "failed"]
 
 _KEY_PREFIX = "job"
 

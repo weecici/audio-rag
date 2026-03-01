@@ -16,6 +16,7 @@ router = APIRouter(prefix="/jobs", tags=["Jobs"])
     description="Poll the status of an asynchronous file ingestion job.",
 )
 async def get_job(job_id: str) -> JobStatusResponse:
+    print(job_id)
     data = get_job_status(job_id)
 
     if data is None:

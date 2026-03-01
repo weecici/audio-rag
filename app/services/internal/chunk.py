@@ -61,14 +61,14 @@ def _get_cerebras_client() -> Cerebras:
     return _cerebras_client
 
 
-_TITLE_SYSTEM_PROMPT = (
-    "You are a concise title generator. Given a text chunk from a document, "
-    f"produce a short, descriptive title (max {settings.TITLE_MAX_TOKENS} tokens). "
-    "Output ONLY the title, nothing else."
-)
+_TITLE_SYSTEM_PROMPT = """You are a concise title generator. Given a text chunk from a document:
+- Produce a short title with max {settings.TITLE_MAX_TOKENS} tokens that captures the main topic.
+- The **MAIN LANGUAGE of title MUST BE THE SAME as the MAIN LANGUAGE of the input text**.
+- Output ONLY the title, with no extra explanation or formatting.
+"""
 
 
-def _generate_title_sync(text: str) -> str:
+def _generate_title_sync(text: str) -> str | None:
     """Call Cerebras chat completion to generate a title for a chunk."""
     client = _get_cerebras_client()
     try:
@@ -81,7 +81,6 @@ def _generate_title_sync(text: str) -> str:
             temperature=0.0,
         )
         title = (response.choices[0].message.content or "").strip().strip("\"'")
-        print(response)
         return title or None
     except Exception as exc:
         logger.warning(f"Cerebras title generation failed: {exc}")
