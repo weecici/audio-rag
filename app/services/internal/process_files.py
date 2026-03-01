@@ -7,7 +7,7 @@ from langchain_community.document_loaders import TextLoader
 from app.core.logging import logger
 from app.models import Document
 from .chunk import chunk_text, generate_titles, TextChunk
-from .embed import dense_encode
+from .embed import dense_embed
 
 
 def _stable_doc_id(source: str, chunk_index: int) -> int:
@@ -64,7 +64,7 @@ async def process_files(file_paths: list[Path]) -> list[Document]:
     logger.info(f"Embedding {len(all_chunks)} chunks...")
     titles = [c.title for c in all_chunks]
     texts = [c.text for c in all_chunks]
-    vectors = await dense_encode(texts, titles)
+    vectors = await dense_embed(texts, titles)
 
     # 4. Assemble Document objects
     documents: list[Document] = []

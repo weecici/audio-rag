@@ -28,7 +28,7 @@ def _embed_batch_sync(
     return client.embed_documents(texts=texts, titles=titles)
 
 
-async def dense_encode(
+async def dense_embed(
     texts: list[str], titles: Optional[list[str]] = None
 ) -> list[list[float]]:
     """Embed a list of texts, batching as needed.

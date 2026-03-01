@@ -73,7 +73,7 @@ def _generate_title_sync(text: str) -> str:
     client = _get_cerebras_client()
     try:
         response = client.chat.completions.create(
-            model=settings.TITLE_MODEL,
+            model=settings.TITLE_GEN_MODEL,
             messages=[
                 {"role": "system", "content": _TITLE_SYSTEM_PROMPT},
                 {"role": "user", "content": text[:2000]},  # limit context

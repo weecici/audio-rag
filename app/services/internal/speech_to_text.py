@@ -3,19 +3,20 @@ import os
 from pathlib import Path
 from functools import lru_cache
 from typing import Union
+from faster_whisper import WhisperModel, BatchedInferencePipeline
+
 from app.core.config import settings
 from app.core.logging import logger
-from faster_whisper import WhisperModel, BatchedInferencePipeline
 
 
 @lru_cache(maxsize=1)
 def _get_s2t_batched_model() -> BatchedInferencePipeline:
     logger.info(
-        f"Loading speech to text model: faster-whisper-{settings.SPEECH2TEXT_MODEL}"
+        f"Loading speech to text model: faster-whisper-{settings.SPEECH_TO_TEXT_MODEL_SIZE}"
     )
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = WhisperModel(
-        settings.SPEECH2TEXT_MODEL, device=device, compute_type="float16"
+        settings.SPEECH_TO_TEXT_MODEL_SIZE, device=device, compute_type="float16"
     )
     batched_model = BatchedInferencePipeline(model=model)
     return batched_model

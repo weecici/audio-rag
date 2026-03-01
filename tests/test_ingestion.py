@@ -336,8 +336,8 @@ class TestTitleGeneration:
 
 class TestDenseEncode:
     @pytest.mark.asyncio
-    async def test_dense_encode_returns_vectors(self):
-        from app.services.internal.embed import dense_encode
+    async def test_dense_embed_returns_vectors(self):
+        from app.services.internal.embed import dense_embed
 
         # Patch the sync function that run_in_executor calls directly.
         # Patching the client factory doesn't work reliably because
@@ -349,16 +349,16 @@ class TestDenseEncode:
             "app.services.internal.embed._embed_batch_sync",
             return_value=fake_vectors,
         ):
-            vectors = await dense_encode(["text one", "text two"])
+            vectors = await dense_embed(["text one", "text two"])
             assert len(vectors) == 2
             assert len(vectors[0]) == 1024
             assert vectors[1][0] == 0.2
 
     @pytest.mark.asyncio
-    async def test_dense_encode_empty_input(self):
-        from app.services.internal.embed import dense_encode
+    async def test_dense_embed_empty_input(self):
+        from app.services.internal.embed import dense_embed
 
-        vectors = await dense_encode([])
+        vectors = await dense_embed([])
         assert vectors == []
 
 

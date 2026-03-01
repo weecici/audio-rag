@@ -22,9 +22,12 @@ class Settings(BaseSettings):
     MAX_TOKENS: int = 1024
     OVERLAP_TOKENS: int = 200
 
-    # title generation (Cerebras)
-    TITLE_MODEL: str = "gpt-oss-120b"
+    # title generation
+    TITLE_GEN_MODEL: str = "gpt-oss-120b"
     TITLE_MAX_TOKENS: int = 50
+
+    # Speech to text
+    SPEECH_TO_TEXT_MODEL_SIZE: str = "medium"
 
     # embedding
     EMBEDDING_MODEL: str = "models/gemini-embedding-001"
