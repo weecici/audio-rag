@@ -5,7 +5,7 @@ from app import models
 from app.repositories.milvus._client import get_client
 from app.repositories.milvus._collection import delete_collection
 from app.repositories.milvus.storage import upsert_documents, delete_documents
-from app.repositories.milvus.retrieval import dense_search, sparse_search, hybrid_search
+from app.repositories.milvus.search import dense_search, sparse_search, hybrid_search
 from app.core.config import settings
 
 
