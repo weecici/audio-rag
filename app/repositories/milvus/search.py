@@ -18,7 +18,9 @@ _OUTPUT_FIELDS = [
 ]
 
 
-def _hit_to_document(hit: dict) -> models.Document:
+def _hit_to_document(
+    hit: dict, include_score: bool = settings.DEBUG_MODE_ENABLED
+) -> tuple[models.Document, float | None]:
     entity = dict(hit.get("entity") or {})
     # PyMilvus returns primary key in `hit['id']` and also sometimes as `hit['doc_id']`.
     doc_id = hit.get("id")
@@ -46,14 +48,16 @@ def _hit_to_document(hit: dict) -> models.Document:
     entity["created_at"] = _parse_timestamptz(entity.get("created_at"))
     entity["updated_at"] = _parse_timestamptz(entity.get("updated_at"))
 
-    return models.Document(**entity)
+    score = float(hit.get("distance", 0.0)) if include_score else None
+
+    return models.Document(**entity), score
 
 
 def dense_search(
     query_vectors: list[list[float]],
     collection_name: str,
     top_k: int = 5,
-) -> list[list[models.Document]]:
+) -> list[list[tuple[models.Document, float | None]]]:
     client = get_client()
     if not client.has_collection(collection_name):
         return [[] for _ in range(len(query_vectors))]
@@ -80,7 +84,7 @@ def sparse_search(
     query_texts: list[str],
     collection_name: str,
     top_k: int = 5,
-) -> list[list[models.Document]]:
+) -> list[list[tuple[models.Document, float | None]]]:
     client = get_client()
     if not client.has_collection(collection_name):
         return [[] for _ in range(len(query_texts))]
@@ -105,7 +109,7 @@ def hybrid_search(
     query_texts: list[str],
     collection_name: str,
     top_k: int = 5,
-) -> list[list[models.Document]]:
+) -> list[list[tuple[models.Document, float | None]]]:
     client = get_client()
     if not client.has_collection(collection_name):
         return [[] for _ in range(len(query_vectors))]

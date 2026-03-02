@@ -13,6 +13,7 @@ class Settings(BaseSettings):
         case_sensitive=True,
         extra="ignore",
     )
+    DEBUG_MODE_ENABLED: bool = False
 
     # llm provider api keys
     CEREBRAS_API_KEY: Optional[str] = None
@@ -38,7 +39,7 @@ class Settings(BaseSettings):
     EMBEDDING_BATCH_SIZE: int = 64
     EMBEDDING_DIM: int = 768  # must match the actual dimension of the embedding model
 
-    # utils
+    # hybrid search fusion parameters
     FUSION_METHOD: Literal["weighted", "dbsf", "rrf"] = "weighted"
     RRF_K: int = 2
     FUSION_ALPHA: float = 0.7
