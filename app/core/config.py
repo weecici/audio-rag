@@ -44,6 +44,19 @@ class Settings(BaseSettings):
     RRF_K: int = 2
     FUSION_ALPHA: float = 0.7
 
+    # generation (RAG chat)
+    GENERATION_MODEL: str = "gpt-oss-120b"
+    GENERATION_MAX_TOKENS: int = 2048
+    GENERATION_TEMPERATURE: float = 0.3
+    GENERATION_CONTEXT_WINDOW: int = 8192  # max tokens budget for context
+    GENERATION_HISTORY_TURNS: int = 10  # max conversation turns sent to LLM
+    GENERATION_RAG_TOP_K: int = 5  # docs to retrieve per query
+    GENERATION_SEARCH_TYPE: Literal["dense", "sparse", "hybrid"] = "hybrid"
+
+    # conversation storage
+    CONVERSATION_META_COLLECTION: str = "_conversation_meta"
+    CONVERSATION_MSG_COLLECTION: str = "_conversation_messages"
+
     # milvus connection
     MILVUS_URI: str = "http://localhost:19530"
     MILVUS_DB_NAME: str = "default"
