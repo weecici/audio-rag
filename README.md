@@ -75,6 +75,8 @@ The API documentation is available at `http://localhost:8000/docs`.
 uv run pytest
 ```
 
+---
+
 ## Architecture Overview
 
 The system follows a strict **four-layer architecture** with unidirectional dependencies:
@@ -624,5 +626,3 @@ All settings are managed via environment variables (`.env` file), loaded through
 | `REDIS_HOST`                  | `localhost`                   | Redis host                                         |
 | `REDIS_PORT`                  | `6379`                        | Redis port                                         |
 | `OPENWEBUI_RERANKING_ENABLED` | `True`                        | Enable reranking for Open WebUI queries            |
-
----
