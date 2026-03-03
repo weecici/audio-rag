@@ -13,7 +13,8 @@ wheels/
 # Data files
 data*/**
 !data*/.gitkeep
-.env
+.env*
+!.env*.example
 .storage/
 docs/
 tmp*

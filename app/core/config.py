@@ -19,12 +19,13 @@ class Settings(BaseSettings):
     CEREBRAS_API_KEY: Optional[str] = None
     GOOGLE_API_KEY: Optional[str] = None
 
+    # allowed file types for upload
+    ALLOWED_TEXT_EXTS: tuple[str, ...] = (".pdf", ".txt", ".docx", ".doc", ".md")
+    ALLOWED_AUDIO_EXTS: tuple[str, ...] = (".mp3", ".wav", ".ogg", ".flac", ".aac")
+
     # chunking config
     MAX_TOKENS: int = 1024
     OVERLAP_TOKENS: int = 200
-
-    ALLOWED_TEXT_EXTS: tuple[str, ...] = (".pdf", ".txt", ".docx", ".doc", ".md")
-    ALLOWED_AUDIO_EXTS: tuple[str, ...] = (".mp3", ".wav", ".ogg", ".flac", ".aac")
 
     # title generation
     TITLE_GEN_ENABLED: bool = False
@@ -47,15 +48,11 @@ class Settings(BaseSettings):
     # generation (RAG chat)
     GENERATION_MODEL: str = "gpt-oss-120b"
     GENERATION_MAX_TOKENS: int = 2048
-    GENERATION_TEMPERATURE: float = 0.3
+    GENERATION_TEMPERATURE: float = 0.7
     GENERATION_CONTEXT_WINDOW: int = 8192  # max tokens budget for context
     GENERATION_HISTORY_TURNS: int = 10  # max conversation turns sent to LLM
     GENERATION_RAG_TOP_K: int = 5  # docs to retrieve per query
     GENERATION_SEARCH_TYPE: Literal["dense", "sparse", "hybrid"] = "hybrid"
-
-    # conversation storage
-    CONVERSATION_META_COLLECTION: str = "_conversation_meta"
-    CONVERSATION_MSG_COLLECTION: str = "_conversation_messages"
 
     # milvus connection
     MILVUS_URI: str = "http://localhost:19530"
@@ -80,6 +77,10 @@ class Settings(BaseSettings):
     MILVUS_INSERT_BATCH_SIZE: int = 512
     MILVUS_ENABLE_FULLTEXT: bool = False
     MILVUS_TEXT_MAX_LENGTH: int = 9000
+
+    # conversation storage
+    CONVERSATION_META_COLLECTION: str = "_conversation_meta"
+    CONVERSATION_MSG_COLLECTION: str = "_conversation_messages"
 
     # redis
     REDIS_HOST: str = "localhost"

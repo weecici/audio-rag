@@ -1,7 +1,7 @@
 services:
   etcd:
     container_name: milvus-etcd
-    env_file: .env 
+    env_file: .env.compose 
     image: quay.io/coreos/etcd:v3.5.25
     environment:
       ETCD_AUTO_COMPACTION_MODE: revision
@@ -19,7 +19,7 @@ services:
 
   minio:
     container_name: milvus-minio
-    env_file: .env 
+    env_file: .env.compose 
     image: minio/minio:RELEASE.2024-12-18T13-15-44Z
     environment:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
@@ -38,7 +38,7 @@ services:
 
   standalone:
     container_name: milvus-standalone
-    env_file: .env
+    env_file: .env.compose
     image: milvusdb/milvus:v2.6.11
     command: ["milvus", "run", "standalone"]
     security_opt:
@@ -64,7 +64,7 @@ services:
   cache:
     image: redis:8-alpine
     container_name: redis-cache
-    env_file: .env
+    env_file: .env.compose
     ports:
       - "${REDIS_PORT:-6379}:6379"
     command:
@@ -89,7 +89,7 @@ services:
   ui:
     image: ghcr.io/open-webui/open-webui:v0.8.6
     container_name: open-webui
-    env_file: .env
+    env_file: .env.compose
     network_mode: host
     environment:
       WEBUI_AUTH: false
