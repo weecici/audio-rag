@@ -607,8 +607,8 @@ class TestChatCompletionsStreaming:
             response = client.post(
                 "/v1/chat/completions",
                 json={
-                    "model": "rag-my_collection",
-                    "messages": [{"role": "user", "content": "q"}],
+                    "model": "rag-col",
+                    "messages": [{"role": "user", "content": "test"}],
                     "stream": True,
                 },
             )
@@ -865,3 +865,124 @@ class TestOpenAISchemas:
         )
         assert resp.object == "list"
         assert len(resp.data) == 2
+
+
+# ===================================================================
+# 8. Reranking integration tests (OPENWEBUI_RERANKING_ENABLED)
+# ===================================================================
+
+
+class TestOpenWebUIReranking:
+    """Test that OPENWEBUI_RERANKING_ENABLED controls rerank param in search."""
+
+    def test_reranking_enabled_passes_rerank_true(self, client: TestClient):
+        """When OPENWEBUI_RERANKING_ENABLED=True, search gets rerank=True."""
+        with (
+            patch(
+                "app.api.openai_compat.settings",
+            ) as mock_settings,
+            patch(
+                "app.api.openai_compat.search_documents",
+                new_callable=AsyncMock,
+                return_value=[],
+            ) as mock_search,
+            patch(
+                "app.api.openai_compat.generate",
+                new_callable=AsyncMock,
+                return_value="Answer",
+            ),
+        ):
+            mock_settings.OPENWEBUI_RERANKING_ENABLED = True
+            mock_settings.GENERATION_SEARCH_TYPE = "hybrid"
+            mock_settings.GENERATION_RAG_TOP_K = 5
+            mock_settings.GENERATION_HISTORY_TURNS = 5
+
+            response = client.post(
+                "/v1/chat/completions",
+                json={
+                    "model": "rag/col",
+                    "messages": [{"role": "user", "content": "test"}],
+                },
+            )
+
+        assert response.status_code == 200
+        mock_search.assert_awaited_once()
+        call_kwargs = mock_search.call_args.kwargs
+        assert call_kwargs["rerank"] is True
+
+    def test_reranking_disabled_passes_rerank_false(self, client: TestClient):
+        """When OPENWEBUI_RERANKING_ENABLED=False (default), search gets rerank=False."""
+        with (
+            patch(
+                "app.api.openai_compat.settings",
+            ) as mock_settings,
+            patch(
+                "app.api.openai_compat.search_documents",
+                new_callable=AsyncMock,
+                return_value=[],
+            ) as mock_search,
+            patch(
+                "app.api.openai_compat.generate",
+                new_callable=AsyncMock,
+                return_value="Answer",
+            ),
+        ):
+            mock_settings.OPENWEBUI_RERANKING_ENABLED = False
+            mock_settings.GENERATION_SEARCH_TYPE = "hybrid"
+            mock_settings.GENERATION_RAG_TOP_K = 5
+            mock_settings.GENERATION_HISTORY_TURNS = 5
+
+            response = client.post(
+                "/v1/chat/completions",
+                json={
+                    "model": "rag/col",
+                    "messages": [{"role": "user", "content": "test"}],
+                },
+            )
+
+        assert response.status_code == 200
+        mock_search.assert_awaited_once()
+        call_kwargs = mock_search.call_args.kwargs
+        assert call_kwargs["rerank"] is False
+
+    def test_reranking_enabled_streaming(self, client: TestClient):
+        """Streaming with OPENWEBUI_RERANKING_ENABLED=True also passes rerank=True."""
+
+        async def fake_generate_stream(messages):
+            q: asyncio.Queue[str | None] = asyncio.Queue()
+            q.put_nowait("token")
+            q.put_nowait(None)
+            return q
+
+        with (
+            patch(
+                "app.api.openai_compat.settings",
+            ) as mock_settings,
+            patch(
+                "app.api.openai_compat.search_documents",
+                new_callable=AsyncMock,
+                return_value=[],
+            ) as mock_search,
+            patch(
+                "app.api.openai_compat.generate_stream",
+                side_effect=fake_generate_stream,
+            ),
+        ):
+            mock_settings.OPENWEBUI_RERANKING_ENABLED = True
+            mock_settings.GENERATION_SEARCH_TYPE = "hybrid"
+            mock_settings.GENERATION_RAG_TOP_K = 5
+            mock_settings.GENERATION_HISTORY_TURNS = 5
+
+            response = client.post(
+                "/v1/chat/completions",
+                json={
+                    "model": "rag/col",
+                    "messages": [{"role": "user", "content": "test"}],
+                    "stream": True,
+                },
+            )
+
+        assert response.status_code == 200
+        mock_search.assert_awaited_once()
+        call_kwargs = mock_search.call_args.kwargs
+        assert call_kwargs["rerank"] is True

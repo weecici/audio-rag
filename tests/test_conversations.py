@@ -757,6 +757,7 @@ class TestSendMessage:
             collection_name="test_col",
             search_type="dense",
             top_k=3,
+            rerank=False,
         )
 
     @pytest.mark.asyncio
@@ -1336,6 +1337,7 @@ class TestSendMessageEndpoint:
             user_content="What is AI?",
             search_type="dense",
             top_k=3,
+            rerank=False,
         )
 
     def test_send_message_default_params(self, client: TestClient):
@@ -1371,6 +1373,7 @@ class TestSendMessageEndpoint:
             user_content="test",
             search_type="hybrid",
             top_k=5,
+            rerank=False,
         )
 
     def test_send_message_empty_content_422(self, client: TestClient):
@@ -1466,6 +1469,7 @@ class TestStreamingEndpoint:
             user_content="test",
             search_type="hybrid",
             top_k=5,
+            rerank=False,
         )
         mock_non_stream.assert_not_awaited()
 
@@ -1707,3 +1711,175 @@ class TestAutoTitle:
             await send_message("conv-1", "First message")
 
         mock_title.assert_not_called()
+
+
+# ===================================================================
+# 9. Reranking passthrough tests
+# ===================================================================
+
+
+class TestConversationReranking:
+    """Test that rerank parameter is correctly passed through the pipeline."""
+
+    @pytest.fixture()
+    def app(self):
+        return create_app()
+
+    @pytest.fixture()
+    def client(self, app):
+        return TestClient(app)
+
+    @pytest.mark.asyncio
+    async def test_send_message_passes_rerank_true(self):
+        """send_message forwards rerank=True to search_documents."""
+        from app.services.public.conversations import send_message
+
+        with (
+            patch(
+                "app.services.public.conversations._get_conv",
+                return_value=_make_meta(),
+            ),
+            patch(
+                "app.services.public.conversations._get_msgs",
+                return_value=[],
+            ),
+            patch(
+                "app.services.public.conversations.search_documents",
+                new_callable=AsyncMock,
+                return_value=[],
+            ) as mock_search,
+            patch(
+                "app.services.public.conversations.generate",
+                new_callable=AsyncMock,
+                return_value="Answer",
+            ),
+            patch("app.services.public.conversations._save_msgs"),
+            patch("app.services.public.conversations._update_title"),
+        ):
+            await send_message("conv-1", "question", rerank=True)
+
+        mock_search.assert_awaited_once_with(
+            query="question",
+            collection_name="test_col",
+            search_type="hybrid",
+            top_k=5,
+            rerank=True,
+        )
+
+    @pytest.mark.asyncio
+    async def test_send_message_stream_passes_rerank_true(self):
+        """send_message_stream forwards rerank=True to search_documents."""
+        from app.services.public.conversations import send_message_stream
+
+        async def fake_generate_stream(messages):
+            q: asyncio.Queue[str | None] = asyncio.Queue()
+            q.put_nowait("Response")
+            q.put_nowait(None)
+            return q
+
+        with (
+            patch(
+                "app.services.public.conversations._get_conv",
+                return_value=_make_meta(),
+            ),
+            patch(
+                "app.services.public.conversations._get_msgs",
+                return_value=[],
+            ),
+            patch(
+                "app.services.public.conversations.search_documents",
+                new_callable=AsyncMock,
+                return_value=[],
+            ) as mock_search,
+            patch(
+                "app.services.public.conversations.generate_stream",
+                side_effect=fake_generate_stream,
+            ),
+            patch("app.services.public.conversations._save_msgs"),
+            patch("app.services.public.conversations._update_title"),
+        ):
+            async for _ in send_message_stream("conv-1", "question", rerank=True):
+                pass
+
+        mock_search.assert_awaited_once_with(
+            query="question",
+            collection_name="test_col",
+            search_type="hybrid",
+            top_k=5,
+            rerank=True,
+        )
+
+    def test_endpoint_passes_rerank_true(self, client: TestClient):
+        """API endpoint passes rerank=True to send_message service."""
+        mock_response = SendMessageResponse(
+            user_message=MessageResponse(
+                message_id="um",
+                role="user",
+                content="test",
+                created_at=NOW,
+            ),
+            assistant_message=MessageResponse(
+                message_id="am",
+                role="assistant",
+                content="response",
+                created_at=NOW,
+            ),
+        )
+
+        with patch(
+            "app.api.v1.endpoints.conversations.send_message",
+            new_callable=AsyncMock,
+            return_value=mock_response,
+        ) as mock_svc:
+            response = client.post(
+                "/api/v1/conversations/conv-1/messages",
+                json={"content": "test", "rerank": True},
+            )
+
+        assert response.status_code == 200
+        mock_svc.assert_awaited_once_with(
+            conversation_id="conv-1",
+            user_content="test",
+            search_type="hybrid",
+            top_k=5,
+            rerank=True,
+        )
+
+    def test_streaming_endpoint_passes_rerank_true(self, client: TestClient):
+        """API streaming endpoint passes rerank=True to send_message_stream."""
+
+        async def fake_stream(*args, **kwargs):
+            yield {"event": "done", "data": "{}"}
+
+        with patch(
+            "app.api.v1.endpoints.conversations.send_message_stream",
+            side_effect=fake_stream,
+        ) as mock_stream:
+            client.post(
+                "/api/v1/conversations/conv-1/messages",
+                json={"content": "test", "stream": True, "rerank": True},
+            )
+
+        mock_stream.assert_called_once_with(
+            conversation_id="conv-1",
+            user_content="test",
+            search_type="hybrid",
+            top_k=5,
+            rerank=True,
+        )
+
+
+class TestSendMessageSchemaRerank:
+    """Test the rerank field on SendMessageRequest schema."""
+
+    def test_rerank_default_false(self):
+        req = SendMessageRequest(content="hello")
+        assert req.rerank is False
+
+    def test_rerank_true(self):
+        req = SendMessageRequest(content="hello", rerank=True)
+        assert req.rerank is True
+
+    def test_rerank_false_explicit(self):
+        req = SendMessageRequest(content="hello", rerank=False)
+        assert req.rerank is False

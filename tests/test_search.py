@@ -515,6 +515,7 @@ class TestSearchEndpoint:
             collection_name="my_collection",
             search_type="dense",
             top_k=5,
+            rerank=False,
         )
 
     def test_sparse_search_200(self, client: TestClient):
@@ -562,6 +563,7 @@ class TestSearchEndpoint:
             collection_name="col",
             search_type="hybrid",
             top_k=10,
+            rerank=False,
         )
 
     def test_empty_results_200(self, client: TestClient):
@@ -711,7 +713,309 @@ class TestSearchEndpoint:
             collection_name="col",
             search_type="hybrid",
             top_k=42,
+            rerank=False,
         )
+
+
+# ===================================================================
+# 8. Reranking tests
+# ===================================================================
+
+
+class TestSearchWithReranking:
+    """Tests for rerank=True: overfetch logic and reranker integration."""
+
+    @pytest.mark.asyncio
+    async def test_rerank_overfetch_dense(self):
+        """With rerank=True, dense search should fetch OVERFETCH_MULTIPLIER * top_k candidates."""
+        from app.services.public.search import search_documents
+
+        hits = _make_search_hits(10)
+
+        with (
+            patch(
+                "app.services.public.search.embed_query",
+                new_callable=AsyncMock,
+                return_value=FAKE_QUERY_VECTOR,
+            ),
+            patch(
+                "app.services.public.search.dense_search",
+                return_value=[hits],
+            ) as mock_dense,
+            patch(
+                "app.services.public.search._rerank_sync",
+                return_value=[[(0, 0.95), (2, 0.90), (4, 0.85), (1, 0.80), (3, 0.75)]],
+            ) as mock_rerank,
+            patch(
+                "app.services.public.search.settings",
+            ) as mock_settings,
+        ):
+            mock_settings.OVERFETCH_MULTIPLIER = 2.0
+            results = await search_documents(
+                query="test query",
+                collection_name="col",
+                search_type="dense",
+                top_k=5,
+                rerank=True,
+            )
+
+        # Should have fetched 2.0 * 5 = 10 candidates from Milvus
+        mock_dense.assert_called_once()
+        assert mock_dense.call_args.kwargs["top_k"] == 10
+
+        # Reranker should have been called
+        mock_rerank.assert_called_once()
+
+        # Should return exactly top_k=5 results
+        assert len(results) == 5
+
+    @pytest.mark.asyncio
+    async def test_rerank_overfetch_sparse(self):
+        """With rerank=True, sparse search should overfetch too."""
+        from app.services.public.search import search_documents
+
+        hits = _make_search_hits(6)
+
+        with (
+            patch(
+                "app.services.public.search.embed_query",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.services.public.search.sparse_search",
+                return_value=[hits],
+            ) as mock_sparse,
+            patch(
+                "app.services.public.search._rerank_sync",
+                return_value=[[(0, 0.9), (1, 0.8), (2, 0.7)]],
+            ),
+            patch(
+                "app.services.public.search.settings",
+            ) as mock_settings,
+        ):
+            mock_settings.OVERFETCH_MULTIPLIER = 2.0
+            results = await search_documents(
+                query="test",
+                collection_name="col",
+                search_type="sparse",
+                top_k=3,
+                rerank=True,
+            )
+
+        # Should overfetch: 2.0 * 3 = 6
+        assert mock_sparse.call_args.kwargs["top_k"] == 6
+
+        assert len(results) == 3
+
+    @pytest.mark.asyncio
+    async def test_rerank_overfetch_hybrid(self):
+        """With rerank=True, hybrid search should overfetch."""
+        from app.services.public.search import search_documents
+
+        hits = _make_search_hits(8)
+
+        with (
+            patch(
+                "app.services.public.search.embed_query",
+                new_callable=AsyncMock,
+                return_value=FAKE_QUERY_VECTOR,
+            ),
+            patch(
+                "app.services.public.search.hybrid_search",
+                return_value=[hits],
+            ) as mock_hybrid,
+            patch(
+                "app.services.public.search._rerank_sync",
+                return_value=[[(0, 0.9), (1, 0.8), (2, 0.7), (3, 0.6)]],
+            ),
+            patch(
+                "app.services.public.search.settings",
+            ) as mock_settings,
+        ):
+            mock_settings.OVERFETCH_MULTIPLIER = 2.0
+            results = await search_documents(
+                query="test",
+                collection_name="col",
+                search_type="hybrid",
+                top_k=4,
+                rerank=True,
+            )
+
+        assert mock_hybrid.call_args.kwargs["top_k"] == 8  # top_k arg = 2.0 * 4
+
+        assert len(results) == 4
+
+    @pytest.mark.asyncio
+    async def test_rerank_replaces_scores(self):
+        """Reranked results should use the reranker score, not the original."""
+        from app.services.public.search import search_documents
+
+        hits = _make_search_hits(4)
+
+        rerank_output = [[(2, 0.99), (0, 0.50)]]  # reranker picks index 2 first
+
+        with (
+            patch(
+                "app.services.public.search.embed_query",
+                new_callable=AsyncMock,
+                return_value=FAKE_QUERY_VECTOR,
+            ),
+            patch(
+                "app.services.public.search.dense_search",
+                return_value=[hits],
+            ),
+            patch(
+                "app.services.public.search._rerank_sync",
+                return_value=rerank_output,
+            ),
+            patch(
+                "app.services.public.search.settings",
+            ) as mock_settings,
+        ):
+            mock_settings.OVERFETCH_MULTIPLIER = 2.0
+            results = await search_documents(
+                query="test",
+                collection_name="col",
+                search_type="dense",
+                top_k=2,
+                rerank=True,
+            )
+
+        assert len(results) == 2
+        # First result should be the one at original index 2 (doc_id=3)
+        assert results[0].doc_id == 3
+        assert results[0].score == pytest.approx(0.99)
+        # Second result at original index 0 (doc_id=1)
+        assert results[1].doc_id == 1
+        assert results[1].score == pytest.approx(0.50)
+
+    @pytest.mark.asyncio
+    async def test_rerank_false_does_not_overfetch(self):
+        """With rerank=False, search should fetch exactly top_k."""
+        from app.services.public.search import search_documents
+
+        hits = _make_search_hits(3)
+
+        with (
+            patch(
+                "app.services.public.search.embed_query",
+                new_callable=AsyncMock,
+                return_value=FAKE_QUERY_VECTOR,
+            ),
+            patch(
+                "app.services.public.search.dense_search",
+                return_value=[hits],
+            ) as mock_dense,
+            patch(
+                "app.services.public.search._rerank_sync",
+            ) as mock_rerank,
+        ):
+            results = await search_documents(
+                query="test",
+                collection_name="col",
+                search_type="dense",
+                top_k=3,
+                rerank=False,
+            )
+
+        assert mock_dense.call_args.kwargs["top_k"] == 3  # no overfetch
+        mock_rerank.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_rerank_empty_results_skips_reranker(self):
+        """When search returns no results, reranker should not be called."""
+        from app.services.public.search import search_documents
+
+        with (
+            patch(
+                "app.services.public.search.embed_query",
+                new_callable=AsyncMock,
+                return_value=FAKE_QUERY_VECTOR,
+            ),
+            patch(
+                "app.services.public.search.dense_search",
+                return_value=[[]],
+            ),
+            patch(
+                "app.services.public.search._rerank_sync",
+            ) as mock_rerank,
+            patch(
+                "app.services.public.search.settings",
+            ) as mock_settings,
+        ):
+            mock_settings.OVERFETCH_MULTIPLIER = 2.0
+            results = await search_documents(
+                query="test",
+                collection_name="col",
+                search_type="dense",
+                top_k=5,
+                rerank=True,
+            )
+
+        assert results == []
+        mock_rerank.assert_not_called()
+
+    def test_endpoint_passes_rerank_true(self, client: TestClient):
+        """API endpoint passes rerank=True when set in request body."""
+        mock_results = [
+            SearchResult(doc_id=1, title="Doc", text="Content", score=0.9),
+        ]
+
+        with patch(
+            "app.api.v1.endpoints.search.search_documents",
+            new_callable=AsyncMock,
+            return_value=mock_results,
+        ) as mock_svc:
+            response = client.post(
+                "/api/v1/search/col",
+                json={"query": "test", "rerank": True},
+            )
+
+        assert response.status_code == 200
+        mock_svc.assert_awaited_once_with(
+            query="test",
+            collection_name="col",
+            search_type="hybrid",
+            top_k=10,
+            rerank=True,
+        )
+
+    def test_endpoint_rerank_defaults_false(self, client: TestClient):
+        """API endpoint defaults rerank=False when not specified."""
+        with patch(
+            "app.api.v1.endpoints.search.search_documents",
+            new_callable=AsyncMock,
+            return_value=[],
+        ) as mock_svc:
+            response = client.post(
+                "/api/v1/search/col",
+                json={"query": "test"},
+            )
+
+        assert response.status_code == 200
+        mock_svc.assert_awaited_once_with(
+            query="test",
+            collection_name="col",
+            search_type="hybrid",
+            top_k=10,
+            rerank=False,
+        )
+
+
+class TestSearchSchemaRerank:
+    """Test the rerank field on SearchRequest schema."""
+
+    def test_rerank_default_false(self):
+        req = SearchRequest(query="hello")
+        assert req.rerank is False
+
+    def test_rerank_true(self):
+        req = SearchRequest(query="hello", rerank=True)
+        assert req.rerank is True
+
+    def test_rerank_false_explicit(self):
+        req = SearchRequest(query="hello", rerank=False)
+        assert req.rerank is False
 
 
 # ===================================================================
