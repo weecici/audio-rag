@@ -234,6 +234,7 @@ async def chat_completions(request: ChatCompletionRequest):
             collection_name=collection_name,
             search_type=settings.GENERATION_SEARCH_TYPE,
             top_k=settings.GENERATION_RAG_TOP_K,
+            rerank=settings.OPENWEBUI_RERANKING_ENABLED,
         )
     except Exception as exc:
         logger.error(f"Search failed for collection '{collection_name}': {exc}")

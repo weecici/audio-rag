@@ -20,6 +20,10 @@ class SearchRequest(BaseModel):
         "hybrid",
         description="The type of search to perform: 'dense', 'sparse', or 'hybrid'.",
     )
+    rerank: bool = Field(
+        False,
+        description="If true, overfetch candidates and rerank with a cross-encoder before returning top_k results.",
+    )
     language: Optional[str] = Field(
         None,
         description="Optional language hint for sparse / hybrid search.",

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
     DEBUG_MODE_ENABLED: bool = False
+    OPENWEBUI_RERANKING_ENABLED: bool = True
 
     # llm provider api keys
     CEREBRAS_API_KEY: Optional[str] = None
@@ -44,6 +45,10 @@ class Settings(BaseSettings):
     FUSION_METHOD: Literal["weighted", "dbsf", "rrf"] = "weighted"
     RRF_K: int = 2
     FUSION_ALPHA: float = 0.7
+
+    # reranking
+    RERANKER_MODEL: str = "BAAI/bge-reranker-v2-m3"
+    OVERFETCH_MULTIPLIER: float = 2.0  # scales top_k by this factor before reranking
 
     # generation (RAG chat)
     GENERATION_MODEL: str = "gpt-oss-120b"

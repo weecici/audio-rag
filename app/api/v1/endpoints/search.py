@@ -26,6 +26,7 @@ async def search(
         collection_name=collection_name,
         search_type=request.search_type,
         top_k=request.top_k,
+        rerank=request.rerank,
     )
 
     return SearchResponse(

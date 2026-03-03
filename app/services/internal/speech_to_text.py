@@ -1,16 +1,13 @@
 """Speech-to-text transcription using faster-whisper BatchedInferencePipeline."""
 
-import threading
 import torch
 from functools import lru_cache
 from pathlib import Path
 from faster_whisper import WhisperModel, BatchedInferencePipeline
 
 from app.core.config import settings
+from app.core.gpu import gpu_lock as _gpu_lock
 from app.core.logging import logger
-
-# Serialise GPU access – only one transcription batch at a time.
-_gpu_lock = threading.Lock()
 
 
 @lru_cache(maxsize=1)

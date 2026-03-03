@@ -44,6 +44,10 @@ class SendMessageRequest(BaseModel):
         False,
         description="If true, response is streamed via SSE.",
     )
+    rerank: bool = Field(
+        False,
+        description="If true, overfetch candidates and rerank with a cross-encoder before returning top_k results.",
+    )
 
 
 # ---------------------------------------------------------------------------

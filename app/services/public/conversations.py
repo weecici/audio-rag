@@ -171,6 +171,7 @@ async def send_message(
     *,
     search_type: Literal["dense", "sparse", "hybrid"] = "hybrid",
     top_k: int = 5,
+    rerank: bool = False,
 ) -> SendMessageResponse:
     """Full RAG pipeline: retrieve -> augment -> generate -> store.
 
@@ -203,6 +204,7 @@ async def send_message(
         collection_name=meta.collection_name,
         search_type=search_type,
         top_k=top_k,
+        rerank=rerank,
     )
 
     sources: list[dict[str, Any]] = [
@@ -277,6 +279,7 @@ async def send_message_stream(
     *,
     search_type: Literal["dense", "sparse", "hybrid"] = "hybrid",
     top_k: int = 5,
+    rerank: bool = False,
 ):
     """Streaming RAG pipeline.  Yields SSE-formatted chunks.
 
@@ -313,6 +316,7 @@ async def send_message_stream(
         collection_name=meta.collection_name,
         search_type=search_type,
         top_k=top_k,
+        rerank=rerank,
     )
 
     sources: list[dict[str, Any]] = [

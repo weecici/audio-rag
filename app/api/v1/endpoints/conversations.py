@@ -123,6 +123,7 @@ async def create_message(
                 user_content=request.content,
                 search_type=request.search_type,
                 top_k=request.top_k,
+                rerank=request.rerank,
             )
         )
 
@@ -131,5 +132,6 @@ async def create_message(
         user_content=request.content,
         search_type=request.search_type,
         top_k=request.top_k,
+        rerank=request.rerank,
     )
     return result

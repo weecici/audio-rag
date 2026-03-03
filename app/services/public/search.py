@@ -11,10 +11,12 @@ All heavy I/O (embedding API call, Milvus query) is offloaded via
 import asyncio
 from typing import Literal
 
+from app.core.config import settings
 from app.core.logging import logger
 from app.models import Document
 from app.repositories.milvus import dense_search, sparse_search, hybrid_search
 from app.services.internal.embed import embed_query
+from app.services.internal.rerank import rerank as _rerank_sync
 from app.schemas.search import SearchResult
 
 
@@ -84,6 +86,7 @@ async def search_documents(
     *,
     search_type: Literal["dense", "sparse", "hybrid"] = "hybrid",
     top_k: int = 10,
+    rerank: bool = False,
 ) -> list[SearchResult]:
     """Run a search against the vector store and return ranked results.
 
@@ -93,26 +96,35 @@ async def search_documents(
     - For *hybrid* search the query embedding is awaited first (needed as
       input), then the Milvus hybrid search runs in the executor.
 
+    Reranking:
+    - When ``rerank=True``, the search overfetches by
+      ``settings.OVERFETCH_MULTIPLIER`` and then reranks with a
+      cross-encoder model, returning only the top ``top_k`` results.
+
     Args:
         query: Natural-language search query.
         collection_name: Target Milvus collection.
         search_type: One of ``"dense"``, ``"sparse"``, ``"hybrid"``.
         top_k: Maximum number of results to return.
+        rerank: Whether to apply cross-encoder reranking.
 
     Returns:
         A list of :class:`SearchResult` in relevance order.
     """
     loop = asyncio.get_running_loop()
 
+    # When reranking, overfetch candidates so the reranker has more to work with.
+    fetch_k = int(settings.OVERFETCH_MULTIPLIER * top_k) if rerank else top_k
+
     if search_type == "sparse":
         hits = await loop.run_in_executor(
-            None, _run_sparse_search, query, collection_name, top_k
+            None, _run_sparse_search, query, collection_name, fetch_k
         )
 
     elif search_type == "dense":
         query_vector = await embed_query(query)
         hits = await loop.run_in_executor(
-            None, _run_dense_search, query_vector, collection_name, top_k
+            None, _run_dense_search, query_vector, collection_name, fetch_k
         )
 
     else:
@@ -123,13 +135,32 @@ async def search_documents(
             query_vector,
             query,
             collection_name,
-            top_k,
+            fetch_k,
         )
 
     results = [_doc_to_result(doc, score) for doc, score in hits]
 
+    # ---- Rerank and trim to top_k -----------------------------------
+    if rerank and results:
+        candidate_texts = [r.text for r in results]
+        rankings = await loop.run_in_executor(
+            None, _rerank_sync, [query], [candidate_texts]
+        )
+        # rankings[0] is a list of (candidate_index, score) sorted by descending score
+        reranked = rankings[0][:top_k]
+        results = [
+            SearchResult(
+                doc_id=results[idx].doc_id,
+                title=results[idx].title,
+                text=results[idx].text,
+                score=score,
+                metadata=results[idx].metadata,
+            )
+            for idx, score in reranked
+        ]
+
     logger.info(
-        f"Search ({search_type}) on '{collection_name}': "
+        f"Search ({search_type}{', reranked' if rerank else ''}) on '{collection_name}': "
         f"query={query!r}, top_k={top_k}, returned={len(results)}"
     )
     return results
