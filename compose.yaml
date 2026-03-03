@@ -86,7 +86,17 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
-
+  ui:
+    image: ghcr.io/open-webui/open-webui:v0.8.6
+    container_name: open-webui
+    env_file: .env
+    network_mode: host
+    environment:
+      WEBUI_AUTH: false
+      OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL:-http://localhost:8000/v1}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-unused}
+    volumes:
+      - ${DOCKER_VOLUME_DIRECTORY:-.}/.volumes/open-webui:/app/backend/data
 
 networks:
   default:
