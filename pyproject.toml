@@ -1,7 +1,7 @@
 [project]
-name = "cs431-rag"
+name = "audio-rag"
 version = "0.1.0"
-description = "CS431 RAG"
+description = "Audio RAG"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
