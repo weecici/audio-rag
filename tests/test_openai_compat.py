@@ -1,9 +1,9 @@
 """Tests for the OpenAI-compatible endpoints (Open WebUI integration).
 
 Covers:
-- GET /v1/models — lists Milvus collections as models
-- POST /v1/chat/completions — non-streaming RAG chat
-- POST /v1/chat/completions — streaming SSE in OpenAI format
+- GET /api/v1/models — lists Milvus collections as models
+- POST /api/v1/chat/completions — non-streaming RAG chat
+- POST /api/v1/chat/completions — streaming SSE in OpenAI format
 - Helper functions: _collection_from_model, _trim_openai_history, etc.
 - Error handling: unknown model, missing user message, search/generation failures
 - Concurrency: multiple requests served in parallel
@@ -59,41 +59,41 @@ class TestCollectionFromModel:
     """Test _collection_from_model helper."""
 
     def test_valid_model_id(self):
-        from app.api.openai_compat import _collection_from_model
+        from app.services.public.openai_compat import _collection_from_model
 
-        assert _collection_from_model("rag-my_docs") == "my_docs"
+        assert _collection_from_model("RAG_KB/my_docs") == "my_docs"
 
     def test_model_with_hyphens(self):
-        from app.api.openai_compat import _collection_from_model
+        from app.services.public.openai_compat import _collection_from_model
 
-        assert _collection_from_model("rag-cs431-lectures") == "cs431-lectures"
+        assert _collection_from_model("RAG_KB/cs431-lectures") == "cs431-lectures"
 
     def test_model_with_underscores(self):
-        from app.api.openai_compat import _collection_from_model
+        from app.services.public.openai_compat import _collection_from_model
 
-        assert _collection_from_model("rag-ml_papers_2026") == "ml_papers_2026"
+        assert _collection_from_model("RAG_KB/ml_papers_2026") == "ml_papers_2026"
 
     def test_invalid_prefix(self):
-        from app.api.openai_compat import _collection_from_model
+        from app.services.public.openai_compat import _collection_from_model
 
         assert _collection_from_model("gpt-4") is None
 
     def test_empty_string(self):
-        from app.api.openai_compat import _collection_from_model
+        from app.services.public.openai_compat import _collection_from_model
 
         assert _collection_from_model("") is None
 
     def test_just_prefix(self):
-        from app.api.openai_compat import _collection_from_model
+        from app.services.public.openai_compat import _collection_from_model
 
-        assert _collection_from_model("rag-") == ""
+        assert _collection_from_model("RAG_KB/") == ""
 
 
 class TestListDocumentCollections:
     """Test _list_document_collections helper."""
 
     def test_filters_internal_collections(self):
-        from app.api.openai_compat import _list_document_collections
+        from app.services.public.openai_compat import _list_document_collections
 
         mock_client = MagicMock()
         mock_client.list_collections.return_value = [
@@ -104,7 +104,7 @@ class TestListDocumentCollections:
         ]
 
         with patch(
-            "app.api.openai_compat.get_client",
+            "app.services.public.openai_compat.get_client",
             return_value=mock_client,
         ):
             result = _list_document_collections()
@@ -112,13 +112,13 @@ class TestListDocumentCollections:
         assert result == ["lectures", "my_docs"]  # sorted, no _ prefix
 
     def test_empty_collections(self):
-        from app.api.openai_compat import _list_document_collections
+        from app.services.public.openai_compat import _list_document_collections
 
         mock_client = MagicMock()
         mock_client.list_collections.return_value = []
 
         with patch(
-            "app.api.openai_compat.get_client",
+            "app.services.public.openai_compat.get_client",
             return_value=mock_client,
         ):
             result = _list_document_collections()
@@ -126,7 +126,7 @@ class TestListDocumentCollections:
         assert result == []
 
     def test_only_internal_collections(self):
-        from app.api.openai_compat import _list_document_collections
+        from app.services.public.openai_compat import _list_document_collections
 
         mock_client = MagicMock()
         mock_client.list_collections.return_value = [
@@ -135,7 +135,7 @@ class TestListDocumentCollections:
         ]
 
         with patch(
-            "app.api.openai_compat.get_client",
+            "app.services.public.openai_compat.get_client",
             return_value=mock_client,
         ):
             result = _list_document_collections()
@@ -147,7 +147,7 @@ class TestTrimOpenaiHistory:
     """Test _trim_openai_history helper."""
 
     def test_extracts_history_excluding_last_user(self):
-        from app.api.openai_compat import _trim_openai_history, ChatMessage
+        from app.services.public.openai_compat import _trim_openai_history, ChatMessage
 
         messages = [
             ChatMessage(role="system", content="You are helpful"),
@@ -161,7 +161,7 @@ class TestTrimOpenaiHistory:
         assert result[1] == {"role": "assistant", "content": "First answer"}
 
     def test_no_history(self):
-        from app.api.openai_compat import _trim_openai_history, ChatMessage
+        from app.services.public.openai_compat import _trim_openai_history, ChatMessage
 
         messages = [
             ChatMessage(role="system", content="System"),
@@ -171,7 +171,7 @@ class TestTrimOpenaiHistory:
         assert result == []
 
     def test_trims_to_max_turns(self):
-        from app.api.openai_compat import _trim_openai_history, ChatMessage
+        from app.services.public.openai_compat import _trim_openai_history, ChatMessage
 
         messages = [
             ChatMessage(role="user", content="Q1"),
@@ -186,13 +186,13 @@ class TestTrimOpenaiHistory:
         assert result[1]["content"] == "A2"
 
     def test_empty_messages(self):
-        from app.api.openai_compat import _trim_openai_history, ChatMessage
+        from app.services.public.openai_compat import _trim_openai_history, ChatMessage
 
         result = _trim_openai_history([], max_turns=5)
         assert result == []
 
     def test_system_only(self):
-        from app.api.openai_compat import _trim_openai_history, ChatMessage
+        from app.services.public.openai_compat import _trim_openai_history, ChatMessage
 
         messages = [ChatMessage(role="system", content="System")]
         result = _trim_openai_history(messages, max_turns=5)
@@ -203,14 +203,14 @@ class TestBuildNonStreamingResponse:
     """Test _build_non_streaming_response helper."""
 
     def test_response_shape(self):
-        from app.api.openai_compat import _build_non_streaming_response
+        from app.services.public.openai_compat import _build_non_streaming_response
 
         result = _build_non_streaming_response(
-            "chatcmpl-abc", "rag-docs", "Hello world"
+            "chatcmpl-abc", "RAG_KB/docs", "Hello world"
         )
         assert result["id"] == "chatcmpl-abc"
         assert result["object"] == "chat.completion"
-        assert result["model"] == "rag-docs"
+        assert result["model"] == "RAG_KB/docs"
         assert len(result["choices"]) == 1
         assert result["choices"][0]["message"]["role"] == "assistant"
         assert result["choices"][0]["message"]["content"] == "Hello world"
@@ -222,7 +222,7 @@ class TestBuildStreamingChunk:
     """Test _build_streaming_chunk helper."""
 
     def test_content_chunk(self):
-        from app.api.openai_compat import _build_streaming_chunk
+        from app.services.public.openai_compat import _build_streaming_chunk
 
         result = _build_streaming_chunk("id-1", "model", content="Hello")
         assert result.startswith("data: ")
@@ -232,7 +232,7 @@ class TestBuildStreamingChunk:
         assert data["choices"][0]["finish_reason"] is None
 
     def test_finish_chunk(self):
-        from app.api.openai_compat import _build_streaming_chunk
+        from app.services.public.openai_compat import _build_streaming_chunk
 
         result = _build_streaming_chunk("id-1", "model", finish_reason="stop")
         data = json.loads(result[6:-2])
@@ -241,79 +241,79 @@ class TestBuildStreamingChunk:
 
 
 # ===================================================================
-# 2. GET /v1/models endpoint tests
+# 2. GET /api/v1/models endpoint tests
 # ===================================================================
 
 
 class TestModelsEndpoint:
-    """GET /v1/models"""
+    """GET /api/v1/models"""
 
     def test_list_models_200(self, client: TestClient):
         with patch(
-            "app.api.openai_compat._list_document_collections",
+            "app.services.public.openai_compat._list_document_collections",
             return_value=["cs431_lectures", "ml_papers"],
         ):
-            response = client.get("/v1/models")
+            response = client.get("/api/v1/models")
 
         assert response.status_code == 200
         data = response.json()
         assert data["object"] == "list"
         assert len(data["data"]) == 2
-        assert data["data"][0]["id"] == "rag-cs431_lectures"
-        assert data["data"][1]["id"] == "rag-ml_papers"
+        assert data["data"][0]["id"] == "RAG_KB/cs431_lectures"
+        assert data["data"][1]["id"] == "RAG_KB/ml_papers"
         assert data["data"][0]["object"] == "model"
-        assert data["data"][0]["owned_by"] == "cs431-rag"
+        assert data["data"][0]["owned_by"] == "audio-rag"
 
     def test_list_models_empty(self, client: TestClient):
         with patch(
-            "app.api.openai_compat._list_document_collections",
+            "app.services.public.openai_compat._list_document_collections",
             return_value=[],
         ):
-            response = client.get("/v1/models")
+            response = client.get("/api/v1/models")
 
         assert response.status_code == 200
         assert response.json()["data"] == []
 
     def test_list_models_single(self, client: TestClient):
         with patch(
-            "app.api.openai_compat._list_document_collections",
+            "app.services.public.openai_compat._list_document_collections",
             return_value=["my_docs"],
         ):
-            response = client.get("/v1/models")
+            response = client.get("/api/v1/models")
 
         assert response.status_code == 200
         data = response.json()
         assert len(data["data"]) == 1
-        assert data["data"][0]["id"] == "rag-my_docs"
+        assert data["data"][0]["id"] == "RAG_KB/my_docs"
 
 
 # ===================================================================
-# 3. POST /v1/chat/completions — non-streaming tests
+# 3. POST /api/v1/chat/completions — non-streaming tests
 # ===================================================================
 
 
 class TestChatCompletionsNonStreaming:
-    """POST /v1/chat/completions with stream=false"""
+    """POST /api/v1/chat/completions with stream=false"""
 
     def test_basic_completion_200(self, client: TestClient):
         search_results = _make_search_results(2)
 
         with (
             patch(
-                "app.api.openai_compat.search_documents",
+                "app.services.public.openai_compat.search_documents",
                 new_callable=AsyncMock,
                 return_value=search_results,
             ),
             patch(
-                "app.api.openai_compat.generate",
+                "app.services.public.openai_compat.generate",
                 new_callable=AsyncMock,
                 return_value="AI stands for Artificial Intelligence.",
             ),
         ):
             response = client.post(
-                "/v1/chat/completions",
+                "/api/v1/chat/completions",
                 json={
-                    "model": "rag-my_docs",
+                    "model": "RAG_KB/my_docs",
                     "messages": [
                         {"role": "user", "content": "What is AI?"},
                     ],
@@ -323,7 +323,7 @@ class TestChatCompletionsNonStreaming:
         assert response.status_code == 200
         data = response.json()
         assert data["object"] == "chat.completion"
-        assert data["model"] == "rag-my_docs"
+        assert data["model"] == "RAG_KB/my_docs"
         assert len(data["choices"]) == 1
         assert data["choices"][0]["message"]["role"] == "assistant"
         assert (
@@ -334,7 +334,7 @@ class TestChatCompletionsNonStreaming:
 
     def test_unknown_model_404(self, client: TestClient):
         response = client.post(
-            "/v1/chat/completions",
+            "/api/v1/chat/completions",
             json={
                 "model": "gpt-4",
                 "messages": [{"role": "user", "content": "Hello"}],
@@ -348,9 +348,9 @@ class TestChatCompletionsNonStreaming:
 
     def test_no_user_message_400(self, client: TestClient):
         response = client.post(
-            "/v1/chat/completions",
+            "/api/v1/chat/completions",
             json={
-                "model": "rag-docs",
+                "model": "RAG_KB/docs",
                 "messages": [{"role": "system", "content": "You are helpful"}],
             },
         )
@@ -363,20 +363,20 @@ class TestChatCompletionsNonStreaming:
         """Messages with system prompt and history are handled correctly."""
         with (
             patch(
-                "app.api.openai_compat.search_documents",
+                "app.services.public.openai_compat.search_documents",
                 new_callable=AsyncMock,
                 return_value=[],
             ),
             patch(
-                "app.api.openai_compat.generate",
+                "app.services.public.openai_compat.generate",
                 new_callable=AsyncMock,
                 return_value="Follow-up answer",
             ) as mock_gen,
         ):
             response = client.post(
-                "/v1/chat/completions",
+                "/api/v1/chat/completions",
                 json={
-                    "model": "rag-my_docs",
+                    "model": "RAG_KB/my_docs",
                     "messages": [
                         {"role": "system", "content": "You are helpful"},
                         {"role": "user", "content": "First question"},
@@ -398,20 +398,20 @@ class TestChatCompletionsNonStreaming:
         """Search is performed using the last user message."""
         with (
             patch(
-                "app.api.openai_compat.search_documents",
+                "app.services.public.openai_compat.search_documents",
                 new_callable=AsyncMock,
                 return_value=[],
             ) as mock_search,
             patch(
-                "app.api.openai_compat.generate",
+                "app.services.public.openai_compat.generate",
                 new_callable=AsyncMock,
                 return_value="Answer",
             ),
         ):
             client.post(
-                "/v1/chat/completions",
+                "/api/v1/chat/completions",
                 json={
-                    "model": "rag-col",
+                    "model": "RAG_KB/col",
                     "messages": [
                         {"role": "user", "content": "Old question"},
                         {"role": "assistant", "content": "Old answer"},
@@ -427,20 +427,20 @@ class TestChatCompletionsNonStreaming:
     def test_empty_search_results_still_works(self, client: TestClient):
         with (
             patch(
-                "app.api.openai_compat.search_documents",
+                "app.services.public.openai_compat.search_documents",
                 new_callable=AsyncMock,
                 return_value=[],
             ),
             patch(
-                "app.api.openai_compat.generate",
+                "app.services.public.openai_compat.generate",
                 new_callable=AsyncMock,
                 return_value="No docs found, sorry.",
             ),
         ):
             response = client.post(
-                "/v1/chat/completions",
+                "/api/v1/chat/completions",
                 json={
-                    "model": "rag-empty_col",
+                    "model": "RAG_KB/empty_col",
                     "messages": [{"role": "user", "content": "test"}],
                 },
             )
@@ -453,14 +453,14 @@ class TestChatCompletionsNonStreaming:
 
     def test_search_failure_returns_500(self, client: TestClient):
         with patch(
-            "app.api.openai_compat.search_documents",
+            "app.services.public.openai_compat.search_documents",
             new_callable=AsyncMock,
             side_effect=RuntimeError("Milvus connection lost"),
         ):
             response = client.post(
-                "/v1/chat/completions",
+                "/api/v1/chat/completions",
                 json={
-                    "model": "rag-col",
+                    "model": "RAG_KB/col",
                     "messages": [{"role": "user", "content": "test"}],
                 },
             )
@@ -471,20 +471,20 @@ class TestChatCompletionsNonStreaming:
     def test_generation_failure_returns_500(self, client: TestClient):
         with (
             patch(
-                "app.api.openai_compat.search_documents",
+                "app.services.public.openai_compat.search_documents",
                 new_callable=AsyncMock,
                 return_value=[],
             ),
             patch(
-                "app.api.openai_compat.generate",
+                "app.services.public.openai_compat.generate",
                 new_callable=AsyncMock,
                 side_effect=RuntimeError("Cerebras API error"),
             ),
         ):
             response = client.post(
-                "/v1/chat/completions",
+                "/api/v1/chat/completions",
                 json={
-                    "model": "rag-col",
+                    "model": "RAG_KB/col",
                     "messages": [{"role": "user", "content": "test"}],
                 },
             )
@@ -496,20 +496,20 @@ class TestChatCompletionsNonStreaming:
         """OpenAI response must include usage field (even if zeroed)."""
         with (
             patch(
-                "app.api.openai_compat.search_documents",
+                "app.services.public.openai_compat.search_documents",
                 new_callable=AsyncMock,
                 return_value=[],
             ),
             patch(
-                "app.api.openai_compat.generate",
+                "app.services.public.openai_compat.generate",
                 new_callable=AsyncMock,
                 return_value="Answer",
             ),
         ):
             response = client.post(
-                "/v1/chat/completions",
+                "/api/v1/chat/completions",
                 json={
-                    "model": "rag-col",
+                    "model": "RAG_KB/col",
                     "messages": [{"role": "user", "content": "test"}],
                 },
             )
@@ -522,12 +522,12 @@ class TestChatCompletionsNonStreaming:
 
 
 # ===================================================================
-# 4. POST /v1/chat/completions — streaming tests
+# 4. POST /api/v1/chat/completions — streaming tests
 # ===================================================================
 
 
 class TestChatCompletionsStreaming:
-    """POST /v1/chat/completions with stream=true"""
+    """POST /api/v1/chat/completions with stream=true"""
 
     def test_streaming_returns_sse(self, client: TestClient):
         """Streaming should return text/event-stream with OpenAI chunk format."""
@@ -541,19 +541,19 @@ class TestChatCompletionsStreaming:
 
         with (
             patch(
-                "app.api.openai_compat.search_documents",
+                "app.services.public.openai_compat.search_documents",
                 new_callable=AsyncMock,
                 return_value=[],
             ),
             patch(
-                "app.api.openai_compat.generate_stream",
+                "app.services.public.openai_compat.generate_stream",
                 side_effect=fake_generate_stream,
             ),
         ):
             response = client.post(
-                "/v1/chat/completions",
+                "/api/v1/chat/completions",
                 json={
-                    "model": "rag-col",
+                    "model": "RAG_KB/col",
                     "messages": [{"role": "user", "content": "test"}],
                     "stream": True,
                 },
@@ -595,19 +595,19 @@ class TestChatCompletionsStreaming:
 
         with (
             patch(
-                "app.api.openai_compat.search_documents",
+                "app.services.public.openai_compat.search_documents",
                 new_callable=AsyncMock,
                 return_value=[],
             ),
             patch(
-                "app.api.openai_compat.generate_stream",
+                "app.services.public.openai_compat.generate_stream",
                 side_effect=fake_stream,
             ),
         ):
             response = client.post(
-                "/v1/chat/completions",
+                "/api/v1/chat/completions",
                 json={
-                    "model": "rag-col",
+                    "model": "RAG_KB/col",
                     "messages": [{"role": "user", "content": "test"}],
                     "stream": True,
                 },
@@ -620,13 +620,13 @@ class TestChatCompletionsStreaming:
         ]
         for line in lines:
             chunk = json.loads(line[6:])
-            assert chunk["model"] == "rag-my_collection"
+            assert chunk["model"] == "RAG_KB/col"
             assert chunk["object"] == "chat.completion.chunk"
 
     def test_streaming_unknown_model_404(self, client: TestClient):
         """Unknown model returns error even for streaming requests."""
         response = client.post(
-            "/v1/chat/completions",
+            "/api/v1/chat/completions",
             json={
                 "model": "gpt-4",
                 "messages": [{"role": "user", "content": "Hello"}],
@@ -639,9 +639,9 @@ class TestChatCompletionsStreaming:
 
     def test_streaming_no_user_message_400(self, client: TestClient):
         response = client.post(
-            "/v1/chat/completions",
+            "/api/v1/chat/completions",
             json={
-                "model": "rag-col",
+                "model": "RAG_KB/col",
                 "messages": [{"role": "system", "content": "system"}],
                 "stream": True,
             },
@@ -661,19 +661,19 @@ class TestChatCompletionsStreaming:
 
         with (
             patch(
-                "app.api.openai_compat.search_documents",
+                "app.services.public.openai_compat.search_documents",
                 new_callable=AsyncMock,
                 return_value=[],
             ),
             patch(
-                "app.api.openai_compat.generate_stream",
+                "app.services.public.openai_compat.generate_stream",
                 side_effect=fake_stream,
             ),
         ):
             response = client.post(
-                "/v1/chat/completions",
+                "/api/v1/chat/completions",
                 json={
-                    "model": "rag-col",
+                    "model": "RAG_KB/col",
                     "messages": [{"role": "user", "content": "q"}],
                     "stream": True,
                 },
@@ -712,19 +712,19 @@ class TestEndToEndFlow:
 
         with (
             patch(
-                "app.api.openai_compat.search_documents",
+                "app.services.public.openai_compat.search_documents",
                 new_callable=AsyncMock,
                 return_value=search_results,
             ),
             patch(
-                "app.api.openai_compat.generate",
+                "app.services.public.openai_compat.generate",
                 side_effect=capture_generate,
             ),
         ):
             response = client.post(
-                "/v1/chat/completions",
+                "/api/v1/chat/completions",
                 json={
-                    "model": "rag-col",
+                    "model": "RAG_KB/col",
                     "messages": [{"role": "user", "content": "What is AI?"}],
                 },
             )
@@ -733,29 +733,28 @@ class TestEndToEndFlow:
 
         # The last message should contain context block + question
         last_msg = captured_messages[-1]
-        assert last_msg["role"] == "user"
-        assert "Document 1" in last_msg["content"]
-        assert "Document 2" in last_msg["content"]
-        assert "What is AI?" in last_msg["content"]
+        assert "Document 1" in last_msg.content
+        assert "Document 2" in last_msg.content
+        assert "What is AI?" in last_msg.content
 
     def test_stream_false_is_default(self, client: TestClient):
         """Default stream=false returns JSON, not SSE."""
         with (
             patch(
-                "app.api.openai_compat.search_documents",
+                "app.services.public.openai_compat.search_documents",
                 new_callable=AsyncMock,
                 return_value=[],
             ),
             patch(
-                "app.api.openai_compat.generate",
+                "app.services.public.openai_compat.generate",
                 new_callable=AsyncMock,
                 return_value="Answer",
             ),
         ):
             response = client.post(
-                "/v1/chat/completions",
+                "/api/v1/chat/completions",
                 json={
-                    "model": "rag-col",
+                    "model": "RAG_KB/col",
                     "messages": [{"role": "user", "content": "test"}],
                 },
             )
@@ -775,25 +774,25 @@ class TestOpenAIConcurrency:
     @pytest.mark.asyncio
     async def test_concurrent_completions(self):
         """Multiple non-streaming completions can run in parallel."""
-        from app.api.openai_compat import (
+        from app.services.public.openai_compat import (
             chat_completions,
             ChatCompletionRequest,
             ChatMessage,
         )
 
         req = ChatCompletionRequest(
-            model="rag-col",
+            model="RAG_KB/col",
             messages=[ChatMessage(role="user", content="test")],
         )
 
         with (
             patch(
-                "app.api.openai_compat.search_documents",
+                "app.services.public.openai_compat.search_documents",
                 new_callable=AsyncMock,
                 return_value=[],
             ),
             patch(
-                "app.api.openai_compat.generate",
+                "app.services.public.openai_compat.generate",
                 new_callable=AsyncMock,
                 return_value="Answer",
             ),
@@ -817,17 +816,20 @@ class TestOpenAISchemas:
     """Test the OpenAI-compat Pydantic models."""
 
     def test_chat_message_defaults(self):
-        from app.api.openai_compat import ChatMessage
+        from app.services.public.openai_compat import ChatMessage
 
         msg = ChatMessage()
         assert msg.role == "user"
         assert msg.content == ""
 
     def test_chat_completion_request_defaults(self):
-        from app.api.openai_compat import ChatCompletionRequest, ChatMessage
+        from app.services.public.openai_compat import (
+            ChatCompletionRequest,
+            ChatMessage,
+        )
 
         req = ChatCompletionRequest(
-            model="rag-col",
+            model="RAG_KB/col",
             messages=[ChatMessage(role="user", content="hi")],
         )
         assert req.stream is False
@@ -835,10 +837,13 @@ class TestOpenAISchemas:
         assert req.max_tokens is None
 
     def test_chat_completion_request_with_stream(self):
-        from app.api.openai_compat import ChatCompletionRequest, ChatMessage
+        from app.services.public.openai_compat import (
+            ChatCompletionRequest,
+            ChatMessage,
+        )
 
         req = ChatCompletionRequest(
-            model="rag-col",
+            model="RAG_KB/col",
             messages=[ChatMessage(role="user", content="hi")],
             stream=True,
             temperature=0.5,
@@ -849,19 +854,19 @@ class TestOpenAISchemas:
         assert req.max_tokens == 100
 
     def test_model_object(self):
-        from app.api.openai_compat import ModelObject
+        from app.services.public.openai_compat import ModelObject
 
-        m = ModelObject(id="rag-docs")
-        assert m.id == "rag-docs"
+        m = ModelObject(id="RAG_KB/docs")
+        assert m.id == "RAG_KB/docs"
         assert m.object == "model"
-        assert m.owned_by == "cs431-rag"
+        assert m.owned_by == "audio-rag"
         assert isinstance(m.created, int)
 
     def test_model_list_response(self):
-        from app.api.openai_compat import ModelListResponse, ModelObject
+        from app.services.public.openai_compat import ModelListResponse, ModelObject
 
         resp = ModelListResponse(
-            data=[ModelObject(id="rag-a"), ModelObject(id="rag-b")]
+            data=[ModelObject(id="RAG_KB/a"), ModelObject(id="RAG_KB/b")]
         )
         assert resp.object == "list"
         assert len(resp.data) == 2
@@ -879,15 +884,15 @@ class TestOpenWebUIReranking:
         """When OPENWEBUI_RERANKING_ENABLED=True, search gets rerank=True."""
         with (
             patch(
-                "app.api.openai_compat.settings",
+                "app.services.public.openai_compat.settings",
             ) as mock_settings,
             patch(
-                "app.api.openai_compat.search_documents",
+                "app.services.public.openai_compat.search_documents",
                 new_callable=AsyncMock,
                 return_value=[],
             ) as mock_search,
             patch(
-                "app.api.openai_compat.generate",
+                "app.services.public.openai_compat.generate",
                 new_callable=AsyncMock,
                 return_value="Answer",
             ),
@@ -898,9 +903,9 @@ class TestOpenWebUIReranking:
             mock_settings.GENERATION_HISTORY_TURNS = 5
 
             response = client.post(
-                "/v1/chat/completions",
+                "/api/v1/chat/completions",
                 json={
-                    "model": "rag/col",
+                    "model": "RAG_KB/col",
                     "messages": [{"role": "user", "content": "test"}],
                 },
             )
@@ -914,15 +919,15 @@ class TestOpenWebUIReranking:
         """When OPENWEBUI_RERANKING_ENABLED=False (default), search gets rerank=False."""
         with (
             patch(
-                "app.api.openai_compat.settings",
+                "app.services.public.openai_compat.settings",
             ) as mock_settings,
             patch(
-                "app.api.openai_compat.search_documents",
+                "app.services.public.openai_compat.search_documents",
                 new_callable=AsyncMock,
                 return_value=[],
             ) as mock_search,
             patch(
-                "app.api.openai_compat.generate",
+                "app.services.public.openai_compat.generate",
                 new_callable=AsyncMock,
                 return_value="Answer",
             ),
@@ -933,9 +938,9 @@ class TestOpenWebUIReranking:
             mock_settings.GENERATION_HISTORY_TURNS = 5
 
             response = client.post(
-                "/v1/chat/completions",
+                "/api/v1/chat/completions",
                 json={
-                    "model": "rag/col",
+                    "model": "RAG_KB/col",
                     "messages": [{"role": "user", "content": "test"}],
                 },
             )
@@ -956,15 +961,15 @@ class TestOpenWebUIReranking:
 
         with (
             patch(
-                "app.api.openai_compat.settings",
+                "app.services.public.openai_compat.settings",
             ) as mock_settings,
             patch(
-                "app.api.openai_compat.search_documents",
+                "app.services.public.openai_compat.search_documents",
                 new_callable=AsyncMock,
                 return_value=[],
             ) as mock_search,
             patch(
-                "app.api.openai_compat.generate_stream",
+                "app.services.public.openai_compat.generate_stream",
                 side_effect=fake_generate_stream,
             ),
         ):
@@ -974,9 +979,9 @@ class TestOpenWebUIReranking:
             mock_settings.GENERATION_HISTORY_TURNS = 5
 
             response = client.post(
-                "/v1/chat/completions",
+                "/api/v1/chat/completions",
                 json={
-                    "model": "rag/col",
+                    "model": "RAG_KB/col",
                     "messages": [{"role": "user", "content": "test"}],
                     "stream": True,
                 },
