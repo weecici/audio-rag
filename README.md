@@ -113,7 +113,7 @@ graph TB
     end
 
     subgraph API["API Layer"]
-        OAI["/v1/models<br/>/v1/chat/completions<br/><i>OpenAI Compat</i>"]
+        OAI["/api/v1/models<br/>/api/v1/chat/completions<br/><i>OpenAI Compat</i>"]
         EP_FILES["/api/v1/files/{collection}<br/><i>File Upload</i>"]
         EP_SEARCH["/api/v1/search/{collection}<br/><i>Vector Search</i>"]
         EP_CONV["/api/v1/conversations<br/><i>RAG Chat + SSE Streaming</i>"]
@@ -293,10 +293,10 @@ The API layer handles HTTP routing, request deserialization, and response format
 
 Allows Open WebUI to use the RAG backend as a standard LLM provider:
 
-| Endpoint               | Method | Description                                                  |
-| ---------------------- | ------ | ------------------------------------------------------------ |
-| `/v1/models`           | GET    | Lists Milvus collections as models (`rag/{collection_name}`) |
-| `/v1/chat/completions` | POST   | Full RAG pipeline with OpenAI-format streaming (SSE)         |
+| Endpoint                   | Method | Description                                                  |
+| -------------------------- | ------ | ------------------------------------------------------------ |
+| `/api/v1/models`           | GET    | Lists Milvus collections as models (`rag/{collection_name}`) |
+| `/api/v1/chat/completions` | POST   | Full RAG pipeline with OpenAI-format streaming (SSE)         |
 
 ### Schema Layer
 
