@@ -138,7 +138,7 @@ graph TB
     subgraph IntSvc["Internal Services"]
         CHUNK[Chunking<br/><i>RecursiveCharacterTextSplitter</i>]
         EMBED[Embedding<br/><i>Google Gemini</i>]
-        GEN[Generation<br/><i>Google Gemini (Gemma 3)</i>]
+        GEN[Generation<br/><i>Google Gemma 3</i>]
         RERANK[Reranking<br/><i>CrossEncoder</i>]
         STT[Speech-to-Text<br/><i>faster-whisper</i>]
         PROC[File Processing<br/><i>Load → Chunk → Embed</i>]
