@@ -16,8 +16,7 @@ class Settings(BaseSettings):
     DEBUG_MODE_ENABLED: bool = False
     OPENWEBUI_RERANKING_ENABLED: bool = True
 
-    # llm provider api keys
-    CEREBRAS_API_KEY: Optional[str] = None
+    # llm provider api key
     GOOGLE_API_KEY: Optional[str] = None
 
     # allowed file types for upload
@@ -30,14 +29,14 @@ class Settings(BaseSettings):
 
     # title generation
     TITLE_GEN_ENABLED: bool = False
-    TITLE_GEN_MODEL: str = "gpt-oss-120b"
-    TITLE_MAX_TOKENS: int = 30
+    TITLE_GEN_MODEL: str = "gemma-3-27b-it"
+    TITLE_MAX_TOKENS: int = 50
 
     # Speech to text
     SPEECH_TO_TEXT_MODEL_SIZE: str = "medium"
 
     # embedding
-    EMBEDDING_MODEL: str = "models/gemini-embedding-001"
+    EMBEDDING_MODEL: str = "gemini-embedding-001"
     EMBEDDING_BATCH_SIZE: int = 64
     EMBEDDING_DIM: int = 768  # must match the actual dimension of the embedding model
 
@@ -51,10 +50,9 @@ class Settings(BaseSettings):
     OVERFETCH_MULTIPLIER: float = 2.0  # scales top_k by this factor before reranking
 
     # generation (RAG chat)
-    GENERATION_MODEL: str = "gpt-oss-120b"
+    GENERATION_MODEL: str = "gemma-3-27b-it"
     GENERATION_MAX_TOKENS: int = 2048
     GENERATION_TEMPERATURE: float = 0.7
-    GENERATION_CONTEXT_WINDOW: int = 8192  # max tokens budget for context
     GENERATION_HISTORY_TURNS: int = 10  # max conversation turns sent to LLM
     GENERATION_RAG_TOP_K: int = 5  # docs to retrieve per query
     GENERATION_SEARCH_TYPE: Literal["dense", "sparse", "hybrid"] = "hybrid"

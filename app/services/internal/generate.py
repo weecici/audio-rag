@@ -1,22 +1,18 @@
-"""Internal service: LLM text generation via Cerebras API.
+"""Internal service: LLM text generation via Google Generative AI (LangChain).
 
-Provides both **non-streaming** and **streaming** generation.
-The Cerebras SDK exposes an OpenAI-compatible ``chat.completions.create()``
-interface, so the same patterns used in ``chunk.py`` for title generation
-apply here for RAG answer generation.
+Provides both **non-streaming** and **streaming** generation using
+``langchain_google_genai.ChatGoogleGenerativeAI``.
 
 All synchronous SDK calls are wrapped for ``asyncio.run_in_executor`` so the
 event loop is never blocked.
 """
 
-from __future__ import annotations
-
 import asyncio
-from collections.abc import Iterator
 from functools import lru_cache
 from typing import Any
 
-from cerebras.cloud.sdk import Cerebras
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.core.config import settings
 from app.core.logging import logger
@@ -28,9 +24,14 @@ from app.core.logging import logger
 
 
 @lru_cache(maxsize=1)
-def _get_generation_client() -> Cerebras:
-    """Return a cached Cerebras client for generation."""
-    return Cerebras(api_key=settings.CEREBRAS_API_KEY)
+def _get_llm() -> ChatGoogleGenerativeAI:
+    """Return a cached Google Generative AI client (shared for all generation)."""
+    return ChatGoogleGenerativeAI(
+        google_api_key=settings.GOOGLE_API_KEY,
+        model=settings.GENERATION_MODEL,
+        temperature=settings.GENERATION_TEMPERATURE,
+        max_tokens=settings.GENERATION_MAX_TOKENS,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -49,6 +50,11 @@ not contain enough information, say so honestly.
 but always ground answers in the retrieved documents.
 5. Answer in the same language as the user's question.
 """
+
+
+# ---------------------------------------------------------------------------
+# Message builders
+# ---------------------------------------------------------------------------
 
 
 def build_context_block(sources: list[dict[str, Any]]) -> str:
@@ -78,32 +84,36 @@ def build_messages(
     user_query: str,
     context_block: str,
     history: list[dict[str, str]],
-) -> list[dict[str, str]]:
-    """Assemble the full message list for ``chat.completions.create()``.
+) -> list[BaseMessage]:
+    """Assemble LangChain messages for a RAG turn.
 
-    Layout (follows Anthropic / OpenAI best practice for RAG):
-
-    1. **System**: RAG instruction prompt
-    2. **History**: previous (user, assistant) turns (trimmed to N)
-    3. **User**: context block + current question
+    Layout:
+    1. **SystemMessage**: RAG instruction prompt
+    2. **History**: previous (Human / AI) turns (trimmed to N turns)
+    3. **HumanMessage**: context block + current question
 
     The context is injected in the *latest user turn* rather than the system
     prompt so the model treats it as grounding material for the current
     question, not as a persistent instruction that might leak across turns.
     """
-    messages: list[dict[str, str]] = [
-        {"role": "system", "content": RAG_SYSTEM_PROMPT},
+    messages: list[BaseMessage] = [
+        (
+            HumanMessage(content=RAG_SYSTEM_PROMPT)
+            if settings.GENERATION_MODEL.startswith("gemma-3")
+            else SystemMessage(content=RAG_SYSTEM_PROMPT)
+        )
     ]
 
-    # Append trimmed history
+    _role_map = {"user": HumanMessage, "assistant": AIMessage}
     for h in history:
-        messages.append({"role": h["role"], "content": h["content"]})
+        cls = _role_map.get(h["role"])
+        if cls:
+            messages.append(cls(content=h["content"]))
 
-    # Current user turn: context + question
     user_content = (
         f"Context documents:\n\n{context_block}\n\n---\n\nQuestion: {user_query}"
     )
-    messages.append({"role": "user", "content": user_content})
+    messages.append(HumanMessage(content=user_content))
     return messages
 
 
@@ -112,34 +122,17 @@ def build_messages(
 # ---------------------------------------------------------------------------
 
 
-def _generate_sync(messages: list[dict[str, str]]) -> str:
-    """Blocking call to Cerebras chat completion.  Returns the full response."""
-    client = _get_generation_client()
-    response = client.chat.completions.create(
-        model=settings.GENERATION_MODEL,
-        messages=messages,
-        max_tokens=settings.GENERATION_MAX_TOKENS,
-        temperature=settings.GENERATION_TEMPERATURE,
-        stream=False,
-    )
-    return (response.choices[0].message.content or "").strip()
+def _generate_sync(messages: list[BaseMessage]) -> str:
+    """Blocking call to Google Generative AI. Returns the full response text."""
+    llm = _get_llm()
+    response = llm.invoke(messages)
+    return response.content
 
 
-def _generate_stream_sync(
-    messages: list[dict[str, str]],
-) -> Iterator[str]:
-    """Blocking *streaming* call.  Yields content delta strings."""
-    client = _get_generation_client()
-    stream = client.chat.completions.create(
-        model=settings.GENERATION_MODEL,
-        messages=messages,
-        max_tokens=settings.GENERATION_MAX_TOKENS,
-        temperature=settings.GENERATION_TEMPERATURE,
-        stream=True,
-    )
-    for chunk in stream:
-        if chunk.choices and chunk.choices[0].delta.content:
-            yield chunk.choices[0].delta.content
+def _generate_stream_sync(messages: list[BaseMessage]) -> list[str]:
+    """Blocking streaming call. Returns an iterable of content delta strings."""
+    llm = _get_llm()
+    return [chunk.content for chunk in llm.stream(messages) if chunk.content]
 
 
 # ---------------------------------------------------------------------------
@@ -147,18 +140,18 @@ def _generate_stream_sync(
 # ---------------------------------------------------------------------------
 
 
-async def generate(messages: list[dict[str, str]]) -> str:
+async def generate(messages: list[BaseMessage]) -> str:
     """Generate a complete response (non-streaming).
 
-    Offloads the blocking Cerebras SDK call to the default thread-pool
-    executor so the event loop stays free.
+    Offloads the blocking LangChain call to the default thread-pool executor
+    so the event loop stays free.
     """
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _generate_sync, messages)
 
 
 async def generate_stream(
-    messages: list[dict[str, str]],
+    messages: list[BaseMessage],
 ) -> asyncio.Queue[str | None]:
     """Start a streaming generation and return an ``asyncio.Queue``.
 
@@ -171,8 +164,10 @@ async def generate_stream(
 
     def _producer() -> None:
         try:
-            for token in _generate_stream_sync(messages):
-                loop.call_soon_threadsafe(queue.put_nowait, token)
+            llm = _get_llm()
+            for chunk in llm.stream(messages):
+                if chunk.content:
+                    loop.call_soon_threadsafe(queue.put_nowait, chunk.content)
         except Exception as exc:
             logger.error(f"Streaming generation error: {exc}")
         finally:

@@ -5,7 +5,6 @@ description = "Audio RAG"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "cerebras-cloud-sdk>=1.50.1",
     "fastapi>=0.119.0",
     "huggingface-hub[cli,hf-transfer]>=0.35.3",
     "langchain-community>=0.3.30",
