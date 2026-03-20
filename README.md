@@ -38,42 +38,47 @@ A production-grade **Retrieval-Augmented Generation** system that ingests text a
 - Docker and Docker Compose
 - NVIDIA GPU with CUDA support (optional, for reranking and transcription)
 
-### 1. Start Infrastructure
-
-```bash
-docker compose up -d
-```
-
 This starts Milvus, Redis, and Open WebUI.
 
-### 2. Install Dependencies
+### 1. Install Dependencies
 
 ```bash
 uv sync
 ```
 
-### 3. Configure Environment
+### 2. Configure Environment
 
 ```bash
 cp .env.example .env
 # Edit .env with your API keys:
-#   CEREBRAS_API_KEY=...
 #   GOOGLE_API_KEY=...
 ```
 
-### 4. Run the Backend
+### 3. Setup Infrastructure + Run the Backend
 
 ```bash
+docker compose up -d
+
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+if you have `just` installed, just simply run:
+
+```bash
+just
 ```
 
 The API documentation is available at `http://localhost:8000/docs`.
 
-### 5. Run Tests
+### 4. Run Tests (Optional)
 
 ```bash
 uv run pytest
 ```
+
+### 5. Use Open WebUI
+
+Open WebUI will be available at `http://localhost:8080`. It is preconfigured to use the FastAPI backend as its OpenAI provider, so you can start a conversation right away!
 
 ---
 
@@ -87,12 +92,12 @@ API Endpoints -> Public Services -> Internal Services -> Repositories
 
 Each layer has a single responsibility:
 
-| Layer                 | Responsibility                                         | Examples                                     |
-| --------------------- | ------------------------------------------------------ | -------------------------------------------- |
-| **API**               | HTTP routing, request validation, response formatting  | REST endpoints, OpenAI-compat API            |
-| **Public Services**   | Business orchestration, workflow coordination          | Ingestion pipeline, RAG chat, search         |
-| **Internal Services** | Atomic capabilities (embedding, generation, reranking) | Gemini embedding, Cerebras LLM, CrossEncoder |
-| **Repositories**      | Data access and persistence                            | Milvus vector DB, Redis job store            |
+| Layer                 | Responsibility                                         | Examples                             |
+| --------------------- | ------------------------------------------------------ | ------------------------------------ |
+| **API**               | HTTP routing, request validation, response formatting  | REST endpoints, OpenAI-compat API    |
+| **Public Services**   | Business orchestration, workflow coordination          | Ingestion pipeline, RAG chat, search |
+| **Internal Services** | Atomic capabilities (embedding, generation, reranking) | Gemini embedding + LLM, CrossEncoder |
+| **Repositories**      | Data access and persistence                            | Milvus vector DB, Redis job store    |
 
 Cross-cutting concerns (configuration, logging, GPU locking, error handling) live in `app/core/` and `app/middleware/`.
 
@@ -133,7 +138,7 @@ graph TB
     subgraph IntSvc["Internal Services"]
         CHUNK[Chunking<br/><i>RecursiveCharacterTextSplitter</i>]
         EMBED[Embedding<br/><i>Google Gemini</i>]
-        GEN[Generation<br/><i>Cerebras LLM</i>]
+        GEN[Generation<br/><i>Google Gemini (Gemma 3)</i>]
         RERANK[Reranking<br/><i>CrossEncoder</i>]
         STT[Speech-to-Text<br/><i>faster-whisper</i>]
         PROC[File Processing<br/><i>Load → Chunk → Embed</i>]
@@ -232,7 +237,7 @@ app/
 │   └── internal/
 │       ├── chunk.py                 # Text splitting + LLM title generation
 │       ├── embed.py                 # Google Gemini dense embeddings
-│       ├── generate.py              # Cerebras LLM generation (stream + sync)
+│       ├── generate.py              # Google Gemini (Gemma 3) generation (stream + sync)
 │       ├── rerank.py                # CrossEncoder reranking with GPU lifecycle
 │       ├── speech_to_text.py        # faster-whisper transcription with GPU lifecycle
 │       └── process_files.py         # End-to-end file processing pipeline
@@ -345,9 +350,9 @@ Atomic, single-responsibility services that encapsulate individual ML/AI capabil
 | Service              | Responsibility                                                   | Provider                |
 | -------------------- | ---------------------------------------------------------------- | ----------------------- |
 | **Chunking**         | `RecursiveCharacterTextSplitter` with configurable overlap       | LangChain               |
-| **Title Generation** | LLM-powered chunk title generation                               | Cerebras (gpt-oss-120b) |
+| **Title Generation** | LLM-powered chunk title generation                               | Google Gemma 3 27B      |
 | **Embedding**        | Asymmetric dense embeddings (separate document/query task types) | Google Gemini           |
-| **Generation**       | RAG answer generation (streaming + non-streaming)                | Cerebras (gpt-oss-120b) |
+| **Generation**       | RAG answer generation (streaming + non-streaming)                | Google Gemma 3 27B      |
 | **Reranking**        | Cross-encoder relevance scoring with GPU lifecycle management    | BAAI/bge-reranker-v2-m3 |
 | **Speech-to-Text**   | Batched audio transcription with GPU lifecycle management        | faster-whisper          |
 | **File Processing**  | End-to-end pipeline: load → chunk → title → embed → Document     | Composite               |
@@ -436,7 +441,7 @@ sequenceDiagram
     participant Embed as Gemini Embedding
     participant Milvus as Milvus Search
     participant Rerank as CrossEncoder
-    participant LLM as Cerebras LLM
+    participant LLM as Gemma 3 27B
     participant Store as Milvus Conversations
 
     Client->>API: POST /conversations/{id}/messages
@@ -556,7 +561,7 @@ sequenceDiagram
 | **Vector Database**   | Milvus 2.6                               | Dense (HNSW) + sparse (BM25) vector storage and search |
 | **Cache / Job Store** | Redis 8                                  | Async job tracking with TTL-based expiry               |
 | **Embeddings**        | Google Gemini (`gemini-embedding-001`)   | 768-dimensional asymmetric embeddings                  |
-| **LLM**               | Cerebras (`gpt-oss-120b`)                | RAG answer generation and title generation             |
+| **LLM**               | Google Gemma 3 (`gemma-3-27b`)           | RAG answer generation and title generation             |
 | **Reranking**         | `BAAI/bge-reranker-v2-m3` (CrossEncoder) | Cross-encoder relevance scoring                        |
 | **Speech-to-Text**    | faster-whisper (CTranslate2)             | Batched audio transcription                            |
 | **Text Processing**   | LangChain                                | Document loaders (PDF, DOCX, TXT) and text splitting   |
@@ -581,7 +586,7 @@ graph LR
         MINIO[MinIO<br/><i>Object storage</i>]
         MILVUS[Milvus Standalone<br/><i>:19530</i>]
         REDIS[Redis<br/><i>:6379</i>]
-        WEBUI[Open WebUI<br/><i>:3000</i>]
+        WEBUI[Open WebUI<br/><i>:8080</i>]
     end
 
     WEBUI -->|OpenAI API| APP
@@ -608,8 +613,7 @@ All settings are managed via environment variables (`.env` file), loaded through
 
 | Variable                      | Default                       | Description                                        |
 | ----------------------------- | ----------------------------- | -------------------------------------------------- |
-| `CEREBRAS_API_KEY`            | —                             | Cerebras Cloud API key for LLM generation          |
-| `GOOGLE_API_KEY`              | —                             | Google API key for Gemini embeddings               |
+| `GOOGLE_API_KEY`              | —                             | Google API key for Embeddings + Generation         |
 | `MAX_TOKENS`                  | `1024`                        | Maximum chunk size (characters)                    |
 | `OVERLAP_TOKENS`              | `200`                         | Overlap between consecutive chunks                 |
 | `EMBEDDING_MODEL`             | `models/gemini-embedding-001` | Gemini embedding model                             |
@@ -618,7 +622,7 @@ All settings are managed via environment variables (`.env` file), loaded through
 | `FUSION_ALPHA`                | `0.7`                         | Dense vs sparse weight (1.0 = all dense)           |
 | `RERANKER_MODEL`              | `BAAI/bge-reranker-v2-m3`     | CrossEncoder model for reranking                   |
 | `OVERFETCH_MULTIPLIER`        | `2.0`                         | Overfetch factor before reranking                  |
-| `GENERATION_MODEL`            | `gpt-oss-120b`                | LLM model for RAG generation                       |
+| `GENERATION_MODEL`            | `gemma-3-27b-it`              | LLM model for RAG generation                       |
 | `GENERATION_SEARCH_TYPE`      | `hybrid`                      | Default search type for RAG                        |
 | `GENERATION_RAG_TOP_K`        | `5`                           | Documents retrieved per query                      |
 | `GENERATION_HISTORY_TURNS`    | `10`                          | Max conversation turns sent to LLM                 |
