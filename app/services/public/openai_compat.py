@@ -1,24 +1,10 @@
-"""OpenAI-compatible endpoints for Open WebUI integration.
-
-Provides ``/v1/models`` and ``/v1/chat/completions`` so that Open WebUI
-(or any OpenAI-compatible client) can use our RAG backend as a drop-in
-LLM provider.
-
-* One model per Milvus collection — ``GET /v1/models`` enumerates every
-  document collection (excluding internal ``_``-prefixed ones) and exposes
-  each as ``rag/{collection_name}``.
-"""
-
 import asyncio
-import json
-import time
 import uuid
-from typing import Any, Literal, Optional
+import time
+import json
+from typing import Any
 
-from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
-
 from app.core.config import settings
 from app.core.logging import logger
 from app.repositories.milvus._client import get_client
@@ -28,53 +14,17 @@ from app.services.internal.generate import (
     generate,
     generate_stream,
 )
-from app.services.public.search import search_documents
+from app.schemas import (
+    ChatCompletionRequest,
+    ModelListResponse,
+    ModelObject,
+    ChatMessage,
+)
+from .search import search_documents
 
-router = APIRouter(tags=["OpenAI Compatible"])
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
-_MODEL_PREFIX = "rag/"
+_MODEL_PREFIX = "RAG_KB/"  # RAG Knowledge Base
 _INTERNAL_COLLECTION_PREFIX = "_"
-
-
-# ---------------------------------------------------------------------------
-# Schemas (OpenAI-compatible)
-# ---------------------------------------------------------------------------
-
-
-class ChatMessage(BaseModel):
-    role: Literal["system", "user", "assistant"] = "user"
-    content: str = ""
-
-
-class ChatCompletionRequest(BaseModel):
-    model: str
-    messages: list[ChatMessage]
-    stream: bool = False
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
-    top_p: Optional[float] = None
-    stop: Optional[list[str] | str] = None
-
-
-class ModelObject(BaseModel):
-    id: str
-    object: str = "model"
-    created: int = Field(default_factory=lambda: int(time.time()))
-    owned_by: str = "cs431-rag"
-
-
-class ModelListResponse(BaseModel):
-    object: str = "list"
-    data: list[ModelObject]
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _collection_from_model(model_id: str) -> str | None:
@@ -172,19 +122,75 @@ def _build_streaming_chunk(
 
 
 # ---------------------------------------------------------------------------
-# GET /v1/models
+# Streaming generator
 # ---------------------------------------------------------------------------
 
 
-@router.get(
-    "/v1/models",
-    response_model=ModelListResponse,
-    summary="List available RAG models",
-    description=(
-        "Returns one model per Milvus document collection. "
-        "Each model ID has the format ``rag-{collection_name}``."
-    ),
-)
+async def _stream_response(
+    completion_id: str,
+    model: str,
+    llm_messages: list[dict[str, str]],
+):
+    """Async generator that yields OpenAI-format SSE chunks."""
+    try:
+        queue = await generate_stream(llm_messages)
+
+        while True:
+            token = await queue.get()
+            if token is None:
+                break
+            yield _build_streaming_chunk(completion_id, model, content=token)
+
+        # Final chunk with finish_reason
+        yield _build_streaming_chunk(completion_id, model, finish_reason="stop")
+        yield "data: [DONE]\n\n"
+
+    except Exception as exc:
+        logger.error(f"Streaming generation error: {exc}")
+        # Send an error chunk and terminate
+        error_chunk = {
+            "error": {
+                "message": str(exc),
+                "type": "internal_error",
+            }
+        }
+        yield f"data: {json.dumps(error_chunk)}\n\n"
+        yield "data: [DONE]\n\n"
+
+
+# ---------------------------------------------------------------------------
+# Error helper
+# ---------------------------------------------------------------------------
+
+
+def _openai_error(
+    message: str,
+    code: str = "internal_error",
+    status_code: int = 500,
+) -> dict[str, Any]:
+    """Return an OpenAI-style error response dict.
+
+    We use a plain dict + JSONResponse status code rather than raising
+    because Open WebUI expects a specific JSON shape for errors.
+    """
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "error": {
+                "message": message,
+                "type": code,
+                "param": None,
+                "code": code,
+            }
+        },
+    )
+
+
+###########
+
+
 async def list_models() -> ModelListResponse:
     loop = asyncio.get_running_loop()
     collections = await loop.run_in_executor(None, _list_document_collections)
@@ -192,20 +198,6 @@ async def list_models() -> ModelListResponse:
     return ModelListResponse(data=models)
 
 
-# ---------------------------------------------------------------------------
-# POST /v1/chat/completions
-# ---------------------------------------------------------------------------
-
-
-@router.post(
-    "/v1/chat/completions",
-    summary="Chat completion with RAG",
-    description=(
-        "OpenAI-compatible chat completion endpoint. The model ID encodes "
-        "the Milvus collection to query (e.g. ``rag-my_docs``). "
-        "Supports both streaming (SSE) and non-streaming responses."
-    ),
-)
 async def chat_completions(request: ChatCompletionRequest):
     # 1. Resolve collection from model ID
     collection_name = _collection_from_model(request.model)
@@ -288,70 +280,3 @@ async def chat_completions(request: ChatCompletionRequest):
         )
 
     return _build_non_streaming_response(completion_id, request.model, answer)
-
-
-# ---------------------------------------------------------------------------
-# Streaming generator
-# ---------------------------------------------------------------------------
-
-
-async def _stream_response(
-    completion_id: str,
-    model: str,
-    llm_messages: list[dict[str, str]],
-):
-    """Async generator that yields OpenAI-format SSE chunks."""
-    try:
-        queue = await generate_stream(llm_messages)
-
-        while True:
-            token = await queue.get()
-            if token is None:
-                break
-            yield _build_streaming_chunk(completion_id, model, content=token)
-
-        # Final chunk with finish_reason
-        yield _build_streaming_chunk(completion_id, model, finish_reason="stop")
-        yield "data: [DONE]\n\n"
-
-    except Exception as exc:
-        logger.error(f"Streaming generation error: {exc}")
-        # Send an error chunk and terminate
-        error_chunk = {
-            "error": {
-                "message": str(exc),
-                "type": "internal_error",
-            }
-        }
-        yield f"data: {json.dumps(error_chunk)}\n\n"
-        yield "data: [DONE]\n\n"
-
-
-# ---------------------------------------------------------------------------
-# Error helper
-# ---------------------------------------------------------------------------
-
-
-def _openai_error(
-    message: str,
-    code: str = "internal_error",
-    status_code: int = 500,
-) -> dict[str, Any]:
-    """Return an OpenAI-style error response dict.
-
-    We use a plain dict + JSONResponse status code rather than raising
-    because Open WebUI expects a specific JSON shape for errors.
-    """
-    from fastapi.responses import JSONResponse
-
-    return JSONResponse(
-        status_code=status_code,
-        content={
-            "error": {
-                "message": message,
-                "type": code,
-                "param": None,
-                "code": code,
-            }
-        },
-    )

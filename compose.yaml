@@ -1,7 +1,7 @@
 services:
   etcd:
     container_name: milvus-etcd
-    env_file: .env.compose 
+    env_file: .env.compose
     image: quay.io/coreos/etcd:v3.5.25
     environment:
       ETCD_AUTO_COMPACTION_MODE: revision
@@ -19,7 +19,7 @@ services:
 
   minio:
     container_name: milvus-minio
-    env_file: .env.compose 
+    env_file: .env.compose
     image: minio/minio:RELEASE.2024-12-18T13-15-44Z
     environment:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
@@ -31,7 +31,13 @@ services:
       - ${DOCKER_VOLUME_DIRECTORY:-.}/.volumes/minio:/minio_data
     command: minio server /minio_data --console-address ":${MINIO_CONSOLE_PORT:-9001}"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${MINIO_PORT:-9000}/minio/health/live"]
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:${MINIO_PORT:-9000}/minio/health/live",
+        ]
       interval: 30s
       timeout: 20s
       retries: 3
@@ -42,7 +48,7 @@ services:
     image: milvusdb/milvus:v2.6.11
     command: ["milvus", "run", "standalone"]
     security_opt:
-    - seccomp:unconfined
+      - seccomp:unconfined
     environment:
       ETCD_ENDPOINTS: etcd:${ETCD_PORT:-2379}
       MINIO_ADDRESS: minio:${MINIO_PORT:-9000}
@@ -50,7 +56,13 @@ services:
     volumes:
       - ${DOCKER_VOLUME_DIRECTORY:-.}/.volumes/milvus:/var/lib/milvus
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${MILVUS_HEALTH_PORT:-9091}/healthz"]
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:${MILVUS_HEALTH_PORT:-9091}/healthz",
+        ]
       interval: 30s
       start_period: 90s
       timeout: 20s
@@ -78,10 +90,14 @@ services:
       - warning
       - --requirepass
       - ${REDIS_PASSWORD:-dev-redis-password}
-    volumes: 
+    volumes:
       - ${DOCKER_VOLUME_DIRECTORY:-.}/.volumes/redis:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a \"$REDIS_PASSWORD\" -p 6379 ping | grep -q PONG"]
+      test:
+        [
+          "CMD-SHELL",
+          'redis-cli -a "$REDIS_PASSWORD" -p 6379 ping | grep -q PONG',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -93,7 +109,7 @@ services:
     network_mode: host
     environment:
       WEBUI_AUTH: false
-      OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL:-http://localhost:8000/v1}
+      OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL:-http://localhost:8000/api/v1}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-unused}
     volumes:
       - ${DOCKER_VOLUME_DIRECTORY:-.}/.volumes/open-webui:/app/backend/data

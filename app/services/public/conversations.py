@@ -40,7 +40,7 @@ from app.services.internal.generate import (
     generate,
     generate_stream,
 )
-from app.services.public.search import search_documents
+from .search import search_documents
 
 
 # ---------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 
 from app.api import router
-from app.api.openai_compat import router as openai_router
+from app.api.v1.endpoints.openai_compat import router as openai_router
 from app.middleware import (
     ApiError,
     api_error_handler,
