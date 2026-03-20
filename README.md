@@ -350,9 +350,9 @@ Atomic, single-responsibility services that encapsulate individual ML/AI capabil
 | Service              | Responsibility                                                   | Provider                |
 | -------------------- | ---------------------------------------------------------------- | ----------------------- |
 | **Chunking**         | `RecursiveCharacterTextSplitter` with configurable overlap       | LangChain               |
-| **Title Generation** | LLM-powered chunk title generation                               | Google Gemma 3 27B      |
+| **Title Generation** | LLM-powered chunk title generation                               | Google Gemma 3          |
 | **Embedding**        | Asymmetric dense embeddings (separate document/query task types) | Google Gemini           |
-| **Generation**       | RAG answer generation (streaming + non-streaming)                | Google Gemma 3 27B      |
+| **Generation**       | RAG answer generation (streaming + non-streaming)                | Google Gemma 3          |
 | **Reranking**        | Cross-encoder relevance scoring with GPU lifecycle management    | BAAI/bge-reranker-v2-m3 |
 | **Speech-to-Text**   | Batched audio transcription with GPU lifecycle management        | faster-whisper          |
 | **File Processing**  | End-to-end pipeline: load → chunk → title → embed → Document     | Composite               |
@@ -441,7 +441,7 @@ sequenceDiagram
     participant Embed as Gemini Embedding
     participant Milvus as Milvus Search
     participant Rerank as CrossEncoder
-    participant LLM as Gemma 3 27B
+    participant LLM as Gemma 3
     participant Store as Milvus Conversations
 
     Client->>API: POST /conversations/{id}/messages
@@ -496,9 +496,11 @@ flowchart LR
     SPARSE --> OF
     HYBRID --> OF
 
-    OF -->|No| RES[Return top_k results]
+    OF -->|No| RET1[Retrieve top_k results]
+    RET1 --> RES[Return top_k results]
     OF -->|Yes| OV[Overfetch<br/><i>fetch_k = top_k * 2.0</i>]
-    OV --> CE[CrossEncoder Rerank<br/><i>BAAI/bge-reranker-v2-m3</i>]
+    OV --> RET2[Retrieve fetch_k results]
+    RET2 --> CE[CrossEncoder Rerank<br/><i>BAAI/bge-reranker-v2-m3</i>]
     CE --> TRIM[Trim to top_k]
     TRIM --> RES
 ```
@@ -561,7 +563,7 @@ sequenceDiagram
 | **Vector Database**   | Milvus 2.6                               | Dense (HNSW) + sparse (BM25) vector storage and search |
 | **Cache / Job Store** | Redis 8                                  | Async job tracking with TTL-based expiry               |
 | **Embeddings**        | Google Gemini (`gemini-embedding-001`)   | 768-dimensional asymmetric embeddings                  |
-| **LLM**               | Google Gemma 3 (`gemma-3-27b`)           | RAG answer generation and title generation             |
+| **LLM**               | Google Gemma 3 (`gemma-3-27b-it`)        | RAG answer generation and title generation             |
 | **Reranking**         | `BAAI/bge-reranker-v2-m3` (CrossEncoder) | Cross-encoder relevance scoring                        |
 | **Speech-to-Text**    | faster-whisper (CTranslate2)             | Batched audio transcription                            |
 | **Text Processing**   | LangChain                                | Document loaders (PDF, DOCX, TXT) and text splitting   |
